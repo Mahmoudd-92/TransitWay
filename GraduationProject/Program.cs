@@ -35,13 +35,12 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddSignalR();
-builder.Services.AddHostedService<LocationSimulationService>();
+//builder.Services.AddHostedService<LocationSimulationService>();
 builder.Services.AddAuthorization();
 
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<GoogleAuthService>();
 builder.Services.AddHostedService<LocationSimulationService>();
-
 var app = builder.Build();
 
 

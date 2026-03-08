@@ -11,7 +11,7 @@
         public string Email { get; set; }
 
         public string PasswordHash { get; set; }
-
+        public string LicenseNumber { get; set; }
         public bool IsActive { get; set; }
         public Bus Bus { get; set; }
         public int? CreatedByAdminId { get; set; }

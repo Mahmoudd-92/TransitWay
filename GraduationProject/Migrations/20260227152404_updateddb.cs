@@ -10,13 +10,7 @@ namespace GraduationProject.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "CurrentLatitude",
-                table: "Buses");
-
-            migrationBuilder.DropColumn(
-                name: "CurrentLongitude",
-                table: "Buses");
+           
         }
 
         /// <inheritdoc />

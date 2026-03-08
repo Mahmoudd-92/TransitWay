@@ -98,11 +98,20 @@ namespace GraduationProject.Controllers
             return Unauthorized("Invalid email or password");
         }
 
+        [HttpPost("get-email")]
+        public IActionResult GetEmail(PhoneRequestDto input)
+        {
+            var user = _context.Users.FirstOrDefault(d => d.Phone == input.PhoneNumber);
+            if (user == null) return NotFound("Phone Number Not Found");
+            return Ok(new
+            {
+                email = user.Email,
+            });
+        }
 
         [HttpPost("request-reset")]
         public IActionResult RequestPasswordReset([FromBody] ResetRequestDto dto)
         {
-            // الشاشة الأولى: بتبعت الإيميل عشان تستلم الكود
             var user = _context.Users.FirstOrDefault(u => u.Email == dto.Email);
             var driver = _context.Drivers.FirstOrDefault(d => d.Email == dto.Email);
 
@@ -135,7 +144,6 @@ namespace GraduationProject.Controllers
             if (reset == null || reset.ExpirationTime < DateTime.UtcNow)
                 return BadRequest("Invalid or expired code");
 
-            // بنرجع Ok عشان الفلاتر ينقل اليوزر للشاشة التالتة
             return Ok(new { message = "Code is valid" });
         }
 
