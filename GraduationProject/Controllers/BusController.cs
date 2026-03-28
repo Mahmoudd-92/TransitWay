@@ -49,7 +49,7 @@ namespace GraduationProject.Controllers
                 BusNumber = input.BusNumber,
                 PlateNumber = input.PlateNumber,
                 LicenseNumber = input.LicenseNumber,
-                RouteId = input.RouteId,
+                RouteId =(int)input.RouteId,
                 Status = "Active"
             };
 

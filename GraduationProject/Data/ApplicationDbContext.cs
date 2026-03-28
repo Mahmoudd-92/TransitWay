@@ -24,6 +24,8 @@ namespace GraduationProject.Data
         public DbSet<RoutePoint> RoutePoints { get; set; }
         public DbSet<PasswordResetCode> PasswordResetCodes { get; set; }
         public DbSet<Alert> Alerts { get; set; }
+        public DbSet<Wallet> Wallets { get; set; }
+        public DbSet<RouteQr> RouteQrs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -76,9 +78,7 @@ namespace GraduationProject.Data
                 .WithMany(r => r.Buses)
                 .HasForeignKey(b => b.RouteId);
 
-            // =============================
-            // Route -> Zone
-            // =============================
+           
 
             modelBuilder.Entity<Route>()
                 .HasOne(r => r.Zone)
@@ -92,9 +92,7 @@ namespace GraduationProject.Data
                 .WithMany(b => b.BusLocations)
                 .HasForeignKey(bl => bl.BusId);
 
-            // =============================
-            // Payment -> User
-            // =============================
+          
 
             modelBuilder.Entity<Payment>()
                 .HasOne(p => p.User)
@@ -161,6 +159,10 @@ namespace GraduationProject.Data
                 .HasOne(d => d.Bus)
                 .WithOne(b => b.Driver)
                 .HasForeignKey<Driver>(d => d.BusId);
-        }
+   
+            modelBuilder.Entity<Ticket>()
+                .Property(t => t.Status)
+                .HasConversion<string>();
+    }
     }
 }

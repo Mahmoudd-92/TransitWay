@@ -14,6 +14,9 @@ namespace GraduationProject.Entites
         [Range(-90, 90)]
         public double Longitude { get; set; }
 
+        public string Code { get; set; }
+        public string Zone { get; set; }
+        public string Status { get; set; } = "Active";
         public int RouteId { get; set; }
         public Route Route { get; set; }
         public int? CreatedByAdmin { get; set; }
