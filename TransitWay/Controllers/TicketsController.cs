@@ -64,6 +64,17 @@ namespace TransitWay.Controllers
             return Ok(tickets);
         }
 
+        //[HttpGet]
+        //public IActionResult GetAllRoutes()
+        //{
+        //    var routes = _context.Routes.Select(r => new
+        //    {
+        //        id = r.Id,
+        //        name = r.Name
+        //    }).ToList();
+        //    return Ok(routes);
+        //}
+
         [HttpPost]
         public IActionResult CreateTicket(CreateTicketDto input)
         {
