@@ -28,6 +28,9 @@ namespace TransitWay.Controllers
                     Id = b.Id,
                     PlateNumber = b.PlateNumber,
                     LicenseNumber = b.LicenseNumber,
+                    BusNumber = b.BusNumber,
+                    RouteId = b.RouteId,
+                    Capacity = b.Capacity,
                     Status = b.Status,
                     DriverId = b.Id,
                     DriverName = b.Driver != null ? b.Driver.Name : null
@@ -49,6 +52,7 @@ namespace TransitWay.Controllers
                 BusNumber = input.BusNumber,
                 PlateNumber = input.PlateNumber,
                 LicenseNumber = input.LicenseNumber,
+                Capacity = input.Capacity,
                 RouteId =(int)input.RouteId,
                 Status = "Active"
             };
