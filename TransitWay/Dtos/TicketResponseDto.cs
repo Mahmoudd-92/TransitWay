@@ -4,6 +4,7 @@
     {
         public int Id { get; set; }
         public string RouteName { get; set; }
+        public int PassengerID { get; set; }
         public string BusPlate { get; set; }
         public decimal Price { get; set; }
         public string Status { get; set; }
