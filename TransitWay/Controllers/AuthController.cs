@@ -230,7 +230,7 @@ namespace TransitWay.Controllers
         {
             var admin = new Admin
             {
-                Name = "Main Admin",
+                FullName = "Main Admin",
                 Email = "admin123@gmail.com",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin@12345"),
                 Role = "Admin"

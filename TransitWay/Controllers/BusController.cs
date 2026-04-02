@@ -36,7 +36,6 @@ namespace TransitWay.Controllers
                     DriverName = b.Driver != null ? b.Driver.Name : null
                 })
                 .ToList();
-
             return Ok(buses);
         }
 
@@ -56,11 +55,10 @@ namespace TransitWay.Controllers
                 RouteId =(int)input.RouteId,
                 Status = "Active"
             };
-
             _context.Buses.Add(bus);
             _context.SaveChanges();
 
-            return Ok(new { message = "Bus added successfully" });
+            return Ok(new { message = "Bus added successfully"});
         }
 
       
