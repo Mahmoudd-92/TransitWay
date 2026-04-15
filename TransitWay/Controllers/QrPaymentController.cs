@@ -19,7 +19,7 @@ namespace TransitWay.Controllers
 
         
         [HttpPost("generate-route/{routeId}")]
-        public IActionResult GenerateRouteQr(int routeId)
+        public IActionResult GenerateRouteQr(int routeId , int BusId)
         {
             var route = _context.Routes.Find(routeId);
 
@@ -31,6 +31,7 @@ namespace TransitWay.Controllers
             var routeQr = new RouteQr
             {
                 RouteId = routeId,
+                BusId = BusId,
                 Token = token
             };
 
@@ -83,7 +84,7 @@ namespace TransitWay.Controllers
                 CreatedAt = DateTime.UtcNow,
                 ExpireAt = DateTime.UtcNow.AddHours(2),
                 IsUsed = false,
-                Status = TicketStatus.Valid
+                Status = TicketStatus.Sold
             };
 
             _context.Tickets.Add(ticket);

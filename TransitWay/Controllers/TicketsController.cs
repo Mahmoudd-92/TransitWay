@@ -17,7 +17,17 @@ namespace TransitWay.Controllers
             _context = context;
         }
 
-      
+        private string GetTicketStatus(Ticket t)
+        {
+            if (t.Status == TicketStatus.Cancelled)
+                return "Cancelled";
+
+            if (t.ExpireAt < DateTime.UtcNow)
+                return "Expired";
+
+            return "Sold"; 
+        }
+
         [HttpGet("user/{userId}")]
         public IActionResult GetUserTickets(int userId)
         {
@@ -26,6 +36,7 @@ namespace TransitWay.Controllers
                 .Include(t => t.Route)
                 .Include(t => t.Bus)
                 .OrderByDescending(t => t.CreatedAt)
+                .ToList()
                 .Select(t => new
                 {
                     ticketId = t.Id,
@@ -34,46 +45,52 @@ namespace TransitWay.Controllers
                     price = t.Price,
                     time = t.CreatedAt.ToString("hh:mm tt"),
                     date = t.CreatedAt.ToString("dd-MM-yyyy"),
-                    status = t.Status.ToString()
-                })
-                .ToList();
+                    status = GetTicketStatus(t)
+                });
 
             return Ok(tickets);
         }
 
-     
         [HttpGet]
         public IActionResult GetAllTickets()
         {
             var tickets = _context.Tickets
                 .Include(t => t.Bus)
                 .Include(t => t.Route)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToList()
                 .Select(t => new TicketResponseDto
                 {
                     Id = t.Id,
                     RouteName = t.Route.Name,
                     BusPlate = t.Bus.PlateNumber,
                     Price = t.Price,
-                    Status = t.Status.ToString(),
+                    Status = GetTicketStatus(t),
                     CreatedAt = t.CreatedAt,
-                    ExpireAt = t.ExpireAt,
-                    IsUsed = t.IsUsed
-                })
-                .ToList();
+                    ExpireAt = t.ExpireAt
+                });
 
             return Ok(tickets);
         }
 
-        //[HttpGet]
-        //public IActionResult GetAllRoutes()
-        //{
-        //    var routes = _context.Routes.Select(r => new
-        //    {
-        //        id = r.Id,
-        //        name = r.Name
-        //    }).ToList();
-        //    return Ok(routes);
-        //}
+        [HttpGet("dashboard")]
+        public IActionResult GetDashboard()
+        {
+            var tickets = _context.Tickets.ToList();
+
+            var total = tickets.Count;
+            var sold = tickets.Count(t => GetTicketStatus(t) == "Sold");
+            var cancelled = tickets.Count(t => GetTicketStatus(t) == "Cancelled");
+            var expired = tickets.Count(t => GetTicketStatus(t) == "Expired");
+
+            return Ok(new
+            {
+                total,
+                sold,
+                cancelled,
+                expired
+            });
+        }
 
         [HttpPost]
         public IActionResult CreateTicket(CreateTicketDto input)
@@ -94,11 +111,10 @@ namespace TransitWay.Controllers
                 BusId = input.BusId,
                 RouteId = input.RouteId,
                 Price = input.Price,
-                QRToken = Guid.NewGuid().ToString(),
                 CreatedAt = DateTime.UtcNow,
                 ExpireAt = DateTime.UtcNow.AddHours(input.ValidHours),
-                Status = TicketStatus.Valid,
-                IsUsed = false
+
+                Status = TicketStatus.Sold
             };
 
             _context.Tickets.Add(ticket);
@@ -106,46 +122,11 @@ namespace TransitWay.Controllers
 
             return Ok(new
             {
-                message = "Ticket created successfully",
-                ticketId = ticket.Id,
-                qrToken = ticket.QRToken
+                message = "Ticket created & sold successfully",
+                ticketId = ticket.Id
             });
         }
 
-       
-        [HttpPost("use/{qrToken}")]
-        public IActionResult UseTicket(string qrToken)
-        {
-            var ticket = _context.Tickets
-                .FirstOrDefault(t => t.QRToken == qrToken);
-
-            if (ticket == null)
-                return NotFound("Ticket not found");
-
-            if (ticket.Status == TicketStatus.Used)
-                return BadRequest("Already used");
-
-            if (ticket.Status == TicketStatus.Cancelled)
-                return BadRequest("Ticket cancelled");
-
-            if (ticket.ExpireAt < DateTime.UtcNow)
-            {
-                ticket.Status = TicketStatus.Expired;
-                _context.SaveChanges();
-                return BadRequest("Ticket expired");
-            }
-
-            ticket.IsUsed = true;
-            ticket.Status = TicketStatus.Used;
-            ticket.UsedAt = DateTime.UtcNow;
-
-            _context.SaveChanges();
-
-            return Ok("Ticket used successfully");
-        }
-
-       
-        
         [HttpPut("cancel/{id}")]
         public IActionResult CancelTicket(int id)
         {
@@ -154,9 +135,6 @@ namespace TransitWay.Controllers
             if (ticket == null)
                 return NotFound("Ticket not found");
 
-            if (ticket.Status == TicketStatus.Used)
-                return BadRequest("Cannot cancel used ticket");
-
             ticket.Status = TicketStatus.Cancelled;
 
             _context.SaveChanges();
@@ -164,26 +142,6 @@ namespace TransitWay.Controllers
             return Ok("Ticket cancelled");
         }
 
-       
-        [HttpPut("status/{id}")]
-        public IActionResult UpdateStatus(int id, [FromQuery] string status)
-        {
-            var ticket = _context.Tickets.Find(id);
-
-            if (ticket == null)
-                return NotFound("Ticket not found");
-
-            if (!Enum.TryParse<TicketStatus>(status, true, out var parsedStatus))
-                return BadRequest("Invalid status");
-
-            ticket.Status = parsedStatus;
-
-            _context.SaveChanges();
-
-            return Ok("Status updated");
-        }
-
-      
         [HttpDelete("{id}")]
         public IActionResult DeleteTicket(int id)
         {

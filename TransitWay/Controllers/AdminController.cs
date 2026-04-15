@@ -2,6 +2,7 @@
 using TransitWay.Data;
 using TransitWay.Dtos;
 using TransitWay.Entites;
+using System.Security.Claims;
 
 [ApiController]
 [Route("api/admin")]
@@ -28,7 +29,7 @@ public class AdminController : ControllerBase
 
         return Ok(buses);
     }
- 
+
     [HttpGet]
     public IActionResult GetAll()
     {
@@ -40,19 +41,25 @@ public class AdminController : ControllerBase
                 a.FullName,
                 a.Email,
                 a.PhoneNumber,
-                a.Status
+                a.Status,
+                a.Role
             })
             .ToList();
 
         return Ok(admins);
     }
 
-
     [HttpPost]
     public IActionResult Create(CreateAdminDto dto)
     {
+        var role = User.FindFirst(ClaimTypes.Role)?.Value;
+
+        if (role != "SuperAdmin")
+            return Forbid("Only SuperAdmin can create admins");
+
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
+
         int count = _context.Admins.Count() + 1;
         string code = $"A{count:D3}";
 
@@ -62,8 +69,9 @@ public class AdminController : ControllerBase
             FullName = dto.FullName,
             Email = dto.Email,
             PhoneNumber = dto.PhoneNumber,
-            PasswordHash = dto.Password, 
-            Status = "Active"
+            PasswordHash = dto.Password,
+            Status = "Active",
+            Role = dto.Role ?? "Admin"
         };
 
         _context.Admins.Add(admin);
@@ -76,10 +84,14 @@ public class AdminController : ControllerBase
         });
     }
 
-    
     [HttpPut("{id}")]
     public IActionResult Update(int id, UpdateAdminDto dto)
     {
+        var role = User.FindFirst(ClaimTypes.Role)?.Value;
+
+        if (role != "SuperAdmin")
+            return Forbid("Only SuperAdmin can update");
+
         var admin = _context.Admins.Find(id);
 
         if (admin == null)
@@ -94,10 +106,14 @@ public class AdminController : ControllerBase
         return Ok("Updated successfully");
     }
 
-  
     [HttpPut("status/{id}")]
     public IActionResult ToggleStatus(int id)
     {
+        var role = User.FindFirst(ClaimTypes.Role)?.Value;
+
+        if (role != "SuperAdmin")
+            return Forbid("Only SuperAdmin can change status");
+
         var admin = _context.Admins.Find(id);
 
         if (admin == null)
@@ -115,10 +131,14 @@ public class AdminController : ControllerBase
         });
     }
 
-
     [HttpDelete("{id}")]
     public IActionResult Delete(int id)
     {
+        var role = User.FindFirst(ClaimTypes.Role)?.Value;
+
+        if (role != "SuperAdmin")
+            return Forbid("Only SuperAdmin can delete");
+
         var admin = _context.Admins.Find(id);
 
         if (admin == null)

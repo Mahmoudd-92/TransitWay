@@ -2,6 +2,7 @@
 {
     public class UserTripResponseDto
     {
+        public int Id { get; set; }
         public string BusNumber { get; set; }
 
         public string DistanceToStationKm { get; set; }

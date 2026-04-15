@@ -17,7 +17,7 @@
 
         public decimal Price { get; set; }
 
-        public TicketStatus Status { get; set; } = TicketStatus.Valid;
+        public TicketStatus Status { get; set; } = TicketStatus.Sold;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

@@ -163,6 +163,18 @@ namespace TransitWay.Data
             modelBuilder.Entity<Ticket>()
                 .Property(t => t.Status)
                 .HasConversion<string>();
-    }
-    }
+
+            modelBuilder.Entity<RouteQr>()
+       .HasOne(r => r.Bus)
+       .WithMany()
+       .HasForeignKey(r => r.BusId)
+       .OnDelete(DeleteBehavior.NoAction); 
+
+            modelBuilder.Entity<RouteQr>()
+                .HasOne(r => r.Route)
+                .WithMany()
+                .HasForeignKey(r => r.RouteId)
+                .OnDelete(DeleteBehavior.NoAction); 
+        }
+        }
 }
