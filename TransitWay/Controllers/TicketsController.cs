@@ -62,6 +62,7 @@ namespace TransitWay.Controllers
                 .Select(t => new TicketResponseDto
                 {
                     Id = t.Id,
+                    PassengerID = t.UserId,
                     RouteName = t.Route.Name,
                     BusPlate = t.Bus.PlateNumber,
                     Price = t.Price,
