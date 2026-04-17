@@ -44,10 +44,19 @@ namespace TransitWay.Controllers
 
             byte[] qrImage = qrCode.GetGraphic(20);
 
-            return File(qrImage, "image/png");
+            string qrbase64 = Convert.ToBase64String(qrImage);
+            return Ok(new
+            {
+                Message = "Qr Generated Successfully",
+                routeId = routeId,
+                busId = BusId,
+                token = token,
+                qrImage = $"data:image/png;base64,{qrbase64}"
+            });
+
         }
 
-      
+
         [HttpPost("scan-pay")]
         public IActionResult ScanAndPay([FromBody] ScanRouteDto dto)
         {
@@ -64,7 +73,10 @@ namespace TransitWay.Controllers
 
             var route = _context.Routes.Find(routeQr.RouteId);
 
-            decimal fare = 10.0m; 
+            if (route == null)
+                return BadRequest("Route not found");
+
+            decimal fare = 10.0m;
 
             var wallet = _context.Wallets
                 .FirstOrDefault(w => w.UserId == dto.UserId);
@@ -74,17 +86,19 @@ namespace TransitWay.Controllers
 
             wallet.Balance -= fare;
 
+            int busId = routeQr.BusId;
+
             var ticket = new Ticket
             {
                 UserId = dto.UserId,
                 RouteId = route.Id,
-                BusId = dto.BusId,
+                BusId = busId,
                 Price = fare,
                 QRToken = Guid.NewGuid().ToString(),
                 CreatedAt = DateTime.UtcNow,
                 ExpireAt = DateTime.UtcNow.AddHours(2),
                 IsUsed = false,
-                Status = TicketStatus.Sold
+                Status = TicketStatus.Valid
             };
 
             _context.Tickets.Add(ticket);
@@ -94,13 +108,24 @@ namespace TransitWay.Controllers
             {
                 message = "Fare paid successfully",
                 ticketId = ticket.Id,
-                bus = dto.BusId,
-                time = ticket.CreatedAt,
+                busId = busId,
                 route = route.Name,
+                time = ticket.CreatedAt,
                 remainingBalance = wallet.Balance
             });
         }
-      
+
+        [HttpGet("qr-image/{token}")]
+        public IActionResult GetQrImage(string token)
+        {
+            using var qrGenerator = new QRCodeGenerator();
+            var qrData = qrGenerator.CreateQrCode(token, QRCodeGenerator.ECCLevel.Q);
+            var qrCode = new PngByteQRCode(qrData);
+
+            var qrImage = qrCode.GetGraphic(20);
+
+            return File(qrImage, "image/png");
+        }
         private string GenerateSecureToken()
         {
             return Guid.NewGuid().ToString("N").ToUpper();
