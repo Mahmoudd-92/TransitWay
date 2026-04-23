@@ -154,6 +154,98 @@ namespace TransitWay.Controllers
             });
         }
 
+        private User GetOrCreateManualPassengerUser()
+        {
+            const string manualEmail = "manual.passenger@transitway.local";
+
+            var manualUser = _context.Users.FirstOrDefault(u => u.Email == manualEmail);
+
+            if (manualUser != null)
+                return manualUser;
+
+            manualUser = new User
+            {
+                FullName = "Manual Passenger",
+                Email = manualEmail,
+                PasswordHash = "MANUAL_PASSENGER",
+                Phone = null,
+                Balance = 0,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Users.Add(manualUser);
+            _context.SaveChanges();
+
+            return manualUser;
+        }
+
+        [HttpPost("manual/by-driver")]
+        public IActionResult CreateManualTicketsByDriver([FromBody] CreateManualTicketByDriverDto input)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var driver = _context.Drivers
+                .Include(d => d.Bus)
+                .ThenInclude(b => b.Route)
+                .ThenInclude(r => r.Zone)
+                .FirstOrDefault(d => d.Id == input.DriverId);
+
+            if (driver == null)
+                return NotFound("Driver not found");
+
+            if (driver.Bus == null)
+                return BadRequest("Driver is not assigned to a bus");
+
+            if (driver.Bus.Id != input.BusId)
+                return BadRequest("Bus does not belong to this driver");
+
+            var passenger = GetOrCreateManualPassengerUser();
+
+            var route = driver.Bus.Route;
+
+            if (route == null)
+                return BadRequest("Bus route not found");
+
+            var ticketPrice = input.Price ?? route.Zone?.Price;
+
+            if (ticketPrice == null || ticketPrice <= 0)
+                return BadRequest("Ticket price is invalid");
+
+            var now = DateTime.UtcNow;
+            var expireAt = now.AddHours(input.ValidHours);
+
+            var tickets = Enumerable.Range(0, input.NumberOfTickets)
+                .Select(_ => new Ticket
+                {
+                    UserId = passenger.Id,
+                    BusId = driver.Bus.Id,
+                    RouteId = route.Id,
+                    Price = ticketPrice.Value,
+                    QRToken = Guid.NewGuid().ToString("N"),
+                    CreatedAt = now,
+                    ExpireAt = expireAt,
+                    IsUsed = false,
+                    Status = TicketStatus.Sold
+                })
+                .ToList();
+
+            _context.Tickets.AddRange(tickets);
+            _context.SaveChanges();
+
+            return Ok(new
+            {
+                message = "Manual tickets created successfully",
+                driverId = driver.Id,
+                busId = driver.Bus.Id,
+                routeId = route.Id,
+                numberOfTickets = tickets.Count,
+                pricePerTicket = ticketPrice.Value,
+                totalAmount = ticketPrice.Value * tickets.Count,
+                ticketIds = tickets.Select(t => t.Id).ToList()
+            });
+        }
+
         [HttpPut("cancel/{id}")]
         public IActionResult CancelTicket(int id)
         {
