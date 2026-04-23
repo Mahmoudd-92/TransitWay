@@ -43,10 +43,27 @@ namespace TransitWay.Controllers
             return Ok(new
             {
                 message = "Login successful",
-                driverId = driver.Id
+                driver.Id,
+                driver.Name,
+                driver.Email,
+                driver.Phone,
+                driver.Bus,
+                driver.BusId,
+                driver.LicenseNumber,
+                driver.Status,
             });
         }
 
+        [HttpPost("get-email")]
+        public IActionResult GetEmail(PhoneRequestDto input)
+        {
+            var driver = _context.Drivers.FirstOrDefault(d => d.Phone == input.PhoneNumber);
+            if (driver == null) return NotFound("Phone Number Not Found");
+            return Ok(new
+            {
+                email = driver.Email,
+            });
+        }
 
 
         [HttpGet]
@@ -80,6 +97,8 @@ namespace TransitWay.Controllers
         {
             var driver = _context.Drivers
                 .Include(d => d.Bus)
+                .ThenInclude(b => b.Route)
+                .ThenInclude(r => r.Stations)
                 .FirstOrDefault(d => d.Id == id);
 
             if (driver == null)
@@ -96,8 +115,12 @@ namespace TransitWay.Controllers
                 Bus = driver.Bus == null ? null : new
                 {
                     driver.Bus.Id,
-                    driver.Bus.BusNumber
-                }
+                    driver.Bus.BusNumber,
+                    driver.Bus.PlateNumber,
+                    driver.Bus.RouteId,
+                },
+                RouteName = driver.Bus?.Route?.Name,    
+                NumberOfStations = driver?.Bus?.Route?.Stations?.Count ?? 0
             });
         }
 

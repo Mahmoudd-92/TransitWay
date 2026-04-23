@@ -1,8 +1,9 @@
-﻿using TransitWay.Entites;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using QRCoder;
 using TransitWay.Data;
 using TransitWay.Dtos;
+using TransitWay.Entites;
 
 namespace TransitWay.Controllers
 {
@@ -71,12 +72,16 @@ namespace TransitWay.Controllers
             if (routeQr == null)
                 return BadRequest("Invalid QR");
 
-            var route = _context.Routes.Find(routeQr.RouteId);
+            var route = _context.Routes.Include(r => r.Zone)
+                .FirstOrDefault(r => r.Id == routeQr.RouteId);
+
+            if (route.Zone == null)
+                return BadRequest("Zone not configured");
 
             if (route == null)
                 return BadRequest("Route not found");
 
-            decimal fare = 10.0m;
+            decimal fare = route.Zone.Price;
 
             var wallet = _context.Wallets
                 .FirstOrDefault(w => w.UserId == dto.UserId);
@@ -110,7 +115,7 @@ namespace TransitWay.Controllers
                 ticketId = ticket.Id,
                 busId = busId,
                 route = route.Name,
-                time = ticket.CreatedAt,
+                time = ticket.CreatedAt.ToLocalTime(),
                 remainingBalance = wallet.Balance
             });
         }

@@ -6,6 +6,7 @@
         public string RouteName { get; set; }
         public int PassengerID { get; set; }
         public string BusPlate { get; set; }
+        public string BusNumber { get; set; }
         public decimal Price { get; set; }
         public string Status { get; set; }
         public DateTime CreatedAt { get; set; }

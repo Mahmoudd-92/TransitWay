@@ -25,7 +25,7 @@ namespace TransitWay.Controllers
             if (t.ExpireAt < DateTime.UtcNow)
                 return "Expired";
 
-            return "Sold"; 
+            return "Sold";
         }
 
         [HttpGet("user/{userId}")]
@@ -41,10 +41,35 @@ namespace TransitWay.Controllers
                 {
                     ticketId = t.Id,
                     route = t.Route.Name,
-                    bus = t.Bus.PlateNumber,
+                    BusNumber = t.Bus.BusNumber,
+                    BusPlate = t.Bus.PlateNumber,
                     price = t.Price,
-                    time = t.CreatedAt.ToString("hh:mm tt"),
-                    date = t.CreatedAt.ToString("dd-MM-yyyy"),
+                    time = t.CreatedAt.ToLocalTime().ToString("hh:mm tt"),
+                    date = t.CreatedAt.ToLocalTime().ToString("dd-MM-yyyy"),
+                    status = GetTicketStatus(t)
+                });
+
+            return Ok(tickets);
+        }
+
+        [HttpGet("bus/{busId}")]
+        public IActionResult GetbusTickets(int busId)
+        {
+            var tickets = _context.Tickets
+                .Where(t => t.BusId == busId)
+                .Include(t => t.Route)
+                .Include(t => t.Bus)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToList()
+                .Select(t => new
+                {
+                    ticketId = t.Id,
+                    route = t.Route.Name,
+                    BusNumber = t.Bus.BusNumber,
+                    BusPlate = t.Bus.PlateNumber,
+                    price = t.Price,
+                    time = t.CreatedAt.ToLocalTime().ToString("hh:mm tt"),
+                    date = t.CreatedAt.ToLocalTime().ToString("dd-MM-yyyy"),
                     status = GetTicketStatus(t)
                 });
 
@@ -64,11 +89,12 @@ namespace TransitWay.Controllers
                     Id = t.Id,
                     PassengerID = t.UserId,
                     RouteName = t.Route.Name,
+                    BusNumber = t.Bus.BusNumber,
                     BusPlate = t.Bus.PlateNumber,
                     Price = t.Price,
                     Status = GetTicketStatus(t),
-                    CreatedAt = t.CreatedAt,
-                    ExpireAt = t.ExpireAt
+                    CreatedAt = t.CreatedAt.ToLocalTime(),
+                    ExpireAt = t.ExpireAt.ToLocalTime()
                 });
 
             return Ok(tickets);
