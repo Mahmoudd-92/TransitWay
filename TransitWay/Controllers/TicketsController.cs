@@ -178,7 +178,6 @@ namespace TransitWay.Controllers
 
             return manualUser;
         }
-
         [HttpPost("manual/by-driver")]
         public IActionResult CreateManualTicketsByDriver([FromBody] CreateManualTicketByDriverDto input)
         {
@@ -242,6 +241,7 @@ namespace TransitWay.Controllers
                 numberOfTickets = tickets.Count,
                 pricePerTicket = ticketPrice.Value,
                 totalAmount = ticketPrice.Value * tickets.Count,
+                CreatedAt = now.ToLocalTime(),
                 ticketIds = tickets.Select(t => t.Id).ToList()
             });
         }
