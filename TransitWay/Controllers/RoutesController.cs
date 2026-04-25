@@ -26,7 +26,9 @@ namespace TransitWay.Controllers
                 {
                     Id = r.Id,
                     Name = r.Name,
-                    Zone = r.Zone.Name
+                    Zone = r.Zone.Name,
+                    Price = r.Zone.Price
+
                 })
                 .ToList();
 
@@ -43,7 +45,6 @@ namespace TransitWay.Controllers
             if (zone == null)
                 return BadRequest("Zone not found");
 
-            // 🔥 هنا بنحوّل DTO → Entity
             var route = new TransitWay.Entites.Route
             {
                 Name = dto.Name,

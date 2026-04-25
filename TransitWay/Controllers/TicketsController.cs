@@ -52,11 +52,21 @@ namespace TransitWay.Controllers
             return Ok(tickets);
         }
 
-        [HttpGet("bus/{busId}")]
-        public IActionResult GetbusTickets(int busId)
+        [HttpGet("driver/{driverId}")]
+        public IActionResult GetBusTickets(int driverId)
         {
+            var driver = _context.Drivers
+                .Include(d => d.Bus)
+                .FirstOrDefault(d => d.Id == driverId);
+
+            if (driver == null)
+                return NotFound("Driver not found");
+
+            if (driver.Bus == null)
+                return BadRequest("Driver has no assigned bus");
+
             var tickets = _context.Tickets
-                .Where(t => t.BusId == busId)
+                .Where(t => t.BusId == driver.Bus.Id) 
                 .Include(t => t.Route)
                 .Include(t => t.Bus)
                 .OrderByDescending(t => t.CreatedAt)
@@ -65,8 +75,8 @@ namespace TransitWay.Controllers
                 {
                     ticketId = t.Id,
                     route = t.Route.Name,
-                    BusNumber = t.Bus.BusNumber,
-                    BusPlate = t.Bus.PlateNumber,
+                    busNumber = t.Bus.BusNumber,
+                    busPlate = t.Bus.PlateNumber,
                     price = t.Price,
                     time = t.CreatedAt.ToLocalTime().ToString("hh:mm tt"),
                     date = t.CreatedAt.ToLocalTime().ToString("dd-MM-yyyy"),
@@ -75,7 +85,6 @@ namespace TransitWay.Controllers
 
             return Ok(tickets);
         }
-
         [HttpGet]
         public IActionResult GetAllTickets()
         {
@@ -178,48 +187,41 @@ namespace TransitWay.Controllers
 
             return manualUser;
         }
-        [HttpPost("manual/by-driver")]
-        public IActionResult CreateManualTicketsByDriver([FromBody] CreateManualTicketByDriverDto input)
+        [HttpPost("manual")]
+        public IActionResult CreateManualTickets([FromBody] CreateManualTicketByDriverDto input)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var driver = _context.Drivers
-                .Include(d => d.Bus)
-                .ThenInclude(b => b.Route)
+            var bus = _context.Buses
+                .Include(b => b.Route)
                 .ThenInclude(r => r.Zone)
-                .FirstOrDefault(d => d.Id == input.DriverId);
+                .FirstOrDefault(b => b.Id == input.BusId);
 
-            if (driver == null)
-                return NotFound("Driver not found");
+            if (bus == null)
+                return NotFound("Bus not found");
 
-            if (driver.Bus == null)
-                return BadRequest("Driver is not assigned to a bus");
+            if (bus.Route == null || bus.Route.Id != input.RouteId)
+                return BadRequest("Bus is not assigned to this route");
 
-            if (driver.Bus.Id != input.BusId)
-                return BadRequest("Bus does not belong to this driver");
+            var route = bus.Route;
 
-            var passenger = GetOrCreateManualPassengerUser();
-
-            var route = driver.Bus.Route;
-
-            if (route == null)
-                return BadRequest("Bus route not found");
-
-            var ticketPrice = input.Price ?? route.Zone?.Price;
+            var ticketPrice = route.Zone?.Price;
 
             if (ticketPrice == null || ticketPrice <= 0)
-                return BadRequest("Ticket price is invalid");
+                return BadRequest("Invalid ticket price");
 
             var now = DateTime.UtcNow;
-            var expireAt = now.AddHours(input.ValidHours);
+            var expireAt = now.AddHours(2);
+
+            var passenger = GetOrCreateManualPassengerUser();
 
             var tickets = Enumerable.Range(0, input.NumberOfTickets)
                 .Select(_ => new Ticket
                 {
                     UserId = passenger.Id,
-                    BusId = driver.Bus.Id,
-                    RouteId = route.Id,
+                    BusId = input.BusId,
+                    RouteId = input.RouteId,
                     Price = ticketPrice.Value,
                     QRToken = Guid.NewGuid().ToString("N"),
                     CreatedAt = now,
@@ -234,18 +236,15 @@ namespace TransitWay.Controllers
 
             return Ok(new
             {
-                message = "Manual tickets created successfully",
-                driverId = driver.Id,
-                busId = driver.Bus.Id,
-                routeId = route.Id,
+                message = "Tickets created successfully ",
+                busId = input.BusId,
+                routeId = input.RouteId,
                 numberOfTickets = tickets.Count,
                 pricePerTicket = ticketPrice.Value,
-                totalAmount = ticketPrice.Value * tickets.Count,
-                CreatedAt = now.ToLocalTime(),
+                dateTime = now.ToLocalTime(),
                 ticketIds = tickets.Select(t => t.Id).ToList()
             });
         }
-
         [HttpPut("cancel/{id}")]
         public IActionResult CancelTicket(int id)
         {
