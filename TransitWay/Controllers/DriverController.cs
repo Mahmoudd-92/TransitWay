@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using TransitWay.Data;
 using TransitWay.Dtos;
+using TransitWay.Services.AttachmentService;
 
 namespace TransitWay.Controllers
 {
@@ -13,10 +14,12 @@ namespace TransitWay.Controllers
     public class DriverController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IAttachmentService _attachmentService;
 
-        public DriverController(ApplicationDbContext context)
+        public DriverController(ApplicationDbContext context, IAttachmentService attachmentService)
         {
             _context = context;
+            _attachmentService = attachmentService;
         }
 
         private string HashPassword(string password)
@@ -26,7 +29,13 @@ namespace TransitWay.Controllers
             return Convert.ToBase64String(bytes);
         }
 
+        private string? BuildPhotoUrl(string? photoName)
+        {
+            if (string.IsNullOrWhiteSpace(photoName))
+                return null;
 
+            return $"{Request.Scheme}://{Request.Host}/images/drivers/{photoName}";
+        }
 
         [HttpPost("login")]
         public IActionResult DriverLogin(LoginDto input)
@@ -51,6 +60,7 @@ namespace TransitWay.Controllers
                 driver.BusId,
                 driver.LicenseNumber,
                 driver.Status,
+                Photo = BuildPhotoUrl(driver.Photo)
             });
         }
 
@@ -79,6 +89,7 @@ namespace TransitWay.Controllers
                     d.Email,
                     d.LicenseNumber,
                     d.Status,
+                    Photo = BuildPhotoUrl(d.Photo),
                     Bus = d.Bus == null ? null : new
                     {
                         d.Bus.Id,
@@ -112,6 +123,7 @@ namespace TransitWay.Controllers
                 driver.Email,
                 driver.LicenseNumber,
                 driver.Status,
+                Photo = BuildPhotoUrl(driver.Photo),
                 Bus = driver.Bus == null ? null : new
                 {
                     driver.Bus.Id,
@@ -127,14 +139,20 @@ namespace TransitWay.Controllers
 
 
         [HttpPost]
-        public IActionResult CreateDriver(CreateDriverDto input)
+        public IActionResult CreateDriver([FromForm] CreateDriverDto input)
         {
-            if (_context.Drivers.Any(d =>
-                d.Email == input.Email ||
-                d.Phone == input.PhoneNumber))
-            {
-                return BadRequest("Email or Phone already exists");
-            }
+            if (_context.Drivers.Any(d => d.Email == input.Email))
+                return BadRequest("Email already exists");
+
+            if (_context.Drivers.Any(d => d.Phone == input.PhoneNumber))
+                return BadRequest("Phone already exists");
+
+            if (input.Photo == null || input.Photo.Length == 0)
+                return BadRequest("Driver photo is required");
+
+            var photoName = _attachmentService.Upload("drivers", input.Photo);
+            if (string.IsNullOrWhiteSpace(photoName))
+                return BadRequest("Invalid photo. Only jpg, jpeg, png up to 5MB are allowed.");
 
             var driver = new Driver
             {
@@ -142,34 +160,60 @@ namespace TransitWay.Controllers
                 Phone = input.PhoneNumber,
                 Email = input.Email,
                 LicenseNumber = input.LicenseNumber,
-                //BusId = input.BusId,
+                Photo = photoName,
                 PasswordHash = HashPassword(input.Password),
                 Status = "Inactive"
+
             };
 
             _context.Drivers.Add(driver);
             _context.SaveChanges();
 
-            return Ok(new { message = "Driver created successfully" });
+            return Ok(new
+            {
+                message = "Driver created successfully",
+                photo = $"/images/drivers/{photoName}"
+            });
         }
 
 
 
         [HttpPut("{id}")]
-        public IActionResult UpdateDriver(int id, UpdateDriverDto input)
+        public IActionResult UpdateDriver(int id, [FromForm] UpdateDriverDto input)
         {
             var driver = _context.Drivers.Find(id);
 
             if (driver == null)
                 return NotFound("Driver not found");
 
+            if (_context.Drivers.Any(d => d.Id != id && d.Email == input.Email))
+                return BadRequest("Email already exists");
+
+            if (_context.Drivers.Any(d => d.Id != id && d.Phone == input.PhoneNumber))
+                return BadRequest("Phone already exists");
+
+            if (input.Photo != null && input.Photo.Length > 0)
+            {
+                var photoName = _attachmentService.Upload("drivers", input.Photo);
+                if (string.IsNullOrWhiteSpace(photoName))
+                    return BadRequest("Invalid photo. Only jpg, jpeg, png up to 5MB are allowed.");
+
+                if (!string.IsNullOrWhiteSpace(driver.Photo))
+                    _attachmentService.Delete(driver.Photo, "drivers");
+
+                driver.Photo = photoName;
+            }
             driver.Name = input.FullName;
             driver.Phone = input.PhoneNumber;
             driver.Email = input.Email;
 
             _context.SaveChanges();
 
-            return Ok(new { message = "Driver updated successfully" });
+            return Ok(new
+            {
+                message = "Driver updated successfully",
+                Photo = BuildPhotoUrl(driver.Photo)
+            });
         }
 
 
@@ -184,6 +228,9 @@ namespace TransitWay.Controllers
 
             if (driver.BusId != null)
                 return BadRequest("Driver is assigned to a bus");
+
+            if (!string.IsNullOrWhiteSpace(driver.Photo))
+                _attachmentService.Delete(driver.Photo, "drivers");
 
             _context.Drivers.Remove(driver);
             _context.SaveChanges();
@@ -354,7 +401,8 @@ namespace TransitWay.Controllers
                     driver.Email,
                     driver.Phone,
                     driver.LicenseNumber,
-                    driver.Status
+                    driver.Status,
+                    Photo = BuildPhotoUrl(driver.Photo)
                 },
                 bus = new
                 {
@@ -390,6 +438,7 @@ namespace TransitWay.Controllers
                 driver.Phone,
                 driver.Email,
                 driver.Status,
+                Photo = BuildPhotoUrl(driver.Photo),
                 BusNumber = driver.Bus?.BusNumber
             });
         }

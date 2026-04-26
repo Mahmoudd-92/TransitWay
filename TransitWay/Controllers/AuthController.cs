@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using TransitWay.Data;
 using TransitWay.Dtos;
 using TransitWay.Services;
+using TransitWay.Services.AttachmentService;
 
 namespace TransitWay.Controllers
 {
@@ -14,11 +15,13 @@ namespace TransitWay.Controllers
         private readonly ApplicationDbContext _context;
         private readonly EmailService _emailService;
         private readonly GoogleAuthService _googleService;
-        public AuthController(ApplicationDbContext context , EmailService emailService, GoogleAuthService googleService)
+        private readonly IAttachmentService _attachmentService;
+        public AuthController(ApplicationDbContext context, EmailService emailService, GoogleAuthService googleService, IAttachmentService attachmentService)
         {
             _context = context;
             _emailService = emailService;
             _googleService = googleService;
+            _attachmentService = attachmentService;
         }
 
 
@@ -47,23 +50,39 @@ namespace TransitWay.Controllers
 
 
         [HttpPost("driver/register")]
-        public IActionResult DriverRegister([FromBody] RegisterDto dto)
+        public IActionResult DriverRegister([FromForm] DriverRegisterDto dto)
         {
             if (_context.Drivers.Any(d => d.Email == dto.Email))
                 return BadRequest("Email already exists.");
+
+            if (_context.Drivers.Any(d => d.Phone == dto.Phone))
+                return BadRequest("Phone already exists.");
+
+            if (dto.Photo == null || dto.Photo.Length == 0)
+                return BadRequest("Driver photo is required.");
+
+            var photoName = _attachmentService.Upload("drivers", dto.Photo);
+            if (string.IsNullOrWhiteSpace(photoName))
+                return BadRequest("Invalid photo. Only jpg, jpeg, png up to 5MB are allowed.");
 
             var driver = new Driver
             {
                 Name = dto.FullName,
                 Email = dto.Email,
                 Phone = dto.Phone,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
+                LicenseNumber = dto.LicenseNumber,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                Photo = photoName
             };
 
             _context.Drivers.Add(driver);
             _context.SaveChanges();
 
-            return Ok("Driver registered successfully.");
+            return Ok(new
+            {
+                message = "Driver registered successfully.",
+                photo = $"/images/drivers/{photoName}"
+            });
         }
 
 
