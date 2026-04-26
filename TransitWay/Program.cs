@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TransitWay.Data;
 using TransitWay.Hubs;
 using TransitWay.Services;
+using TransitWay.Services.AttachmentService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,6 +62,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<GoogleAuthService>();
 builder.Services.AddHostedService<LocationSimulationService>();
+builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 var app = builder.Build();
 
 
