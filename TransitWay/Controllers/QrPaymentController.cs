@@ -62,42 +62,41 @@ namespace TransitWay.Controllers
         public IActionResult ScanAndPay([FromBody] ScanRouteDto dto)
         {
             var user = _context.Users.Find(dto.UserId);
-
             if (user == null)
                 return BadRequest("User not found");
 
             var routeQr = _context.RouteQrs
                 .FirstOrDefault(r => r.Token == dto.QrText);
-
             if (routeQr == null)
                 return BadRequest("Invalid QR");
 
+            var activeTrip = _context.Trips
+                .FirstOrDefault(t => t.BusId == routeQr.BusId && !t.IsCompleted);
+            if (activeTrip == null)
+                return BadRequest("No active trip on this bus, payment not allowed");
+
             var route = _context.Routes.Include(r => r.Zone)
                 .FirstOrDefault(r => r.Id == routeQr.RouteId);
+            if (route == null)
+                return BadRequest("Route not found");
 
             if (route.Zone == null)
                 return BadRequest("Zone not configured");
-
-            if (route == null)
-                return BadRequest("Route not found");
 
             decimal fare = route.Zone.Price;
 
             var wallet = _context.Wallets
                 .FirstOrDefault(w => w.UserId == dto.UserId);
-
             if (wallet == null || wallet.Balance < fare)
                 return BadRequest("Insufficient balance");
 
             wallet.Balance -= fare;
 
-            int busId = routeQr.BusId;
-
             var ticket = new Ticket
             {
                 UserId = dto.UserId,
                 RouteId = route.Id,
-                BusId = busId,
+                BusId = routeQr.BusId,
                 Price = fare,
                 QRToken = Guid.NewGuid().ToString(),
                 CreatedAt = DateTime.UtcNow,
@@ -113,13 +112,12 @@ namespace TransitWay.Controllers
             {
                 message = "Fare paid successfully",
                 ticketId = ticket.Id,
-                busId = busId,
+                busId = routeQr.BusId,
                 route = route.Name,
                 time = ticket.CreatedAt.ToLocalTime(),
                 remainingBalance = wallet.Balance
             });
         }
-
         [HttpGet("qr-image/{token}")]
         public IActionResult GetQrImage(string token)
         {

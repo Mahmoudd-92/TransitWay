@@ -11,6 +11,7 @@ public class Driver
     public string Phone { get; set; }
 
     public string Email { get; set; }
+    public string Photo { get; set; }= null!;
 
     public string PasswordHash { get; set; }
 

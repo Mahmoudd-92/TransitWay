@@ -22,13 +22,17 @@ namespace TransitWay.Controllers
             if (t.Status == TicketStatus.Cancelled)
                 return "Cancelled";
 
+            if (t.Status == TicketStatus.Expired)
+                return "Expired";
+
             if (t.ExpireAt < DateTime.UtcNow)
                 return "Expired";
 
+            if (t.Status == TicketStatus.Valid)
+                return "Valid";
+
             return "Sold";
         }
-
-        
 
         [HttpGet("user/{userId}")]
         public IActionResult GetUserTickets(int userId)
@@ -53,6 +57,7 @@ namespace TransitWay.Controllers
 
             return Ok(tickets);
         }
+
         [HttpGet("driver/{driverId}")]
         public IActionResult GetBusTickets(int driverId)
         {
@@ -67,7 +72,7 @@ namespace TransitWay.Controllers
                 return BadRequest("Driver has no assigned bus");
 
             var tickets = _context.Tickets
-                .Where(t => t.BusId == driver.Bus.Id) 
+                .Where(t => t.BusId == driver.Bus.Id)
                 .Include(t => t.Route)
                 .Include(t => t.Bus)
                 .OrderByDescending(t => t.CreatedAt)
@@ -86,6 +91,7 @@ namespace TransitWay.Controllers
 
             return Ok(tickets);
         }
+
         [HttpGet]
         public IActionResult GetAllTickets()
         {
@@ -120,13 +126,7 @@ namespace TransitWay.Controllers
             var cancelled = tickets.Count(t => GetTicketStatus(t) == "Cancelled");
             var expired = tickets.Count(t => GetTicketStatus(t) == "Expired");
 
-            return Ok(new
-            {
-                total,
-                sold,
-                cancelled,
-                expired
-            });
+            return Ok(new { total, sold, cancelled, expired });
         }
 
         [HttpPost]
@@ -151,7 +151,6 @@ namespace TransitWay.Controllers
                 Price = input.Price,
                 CreatedAt = DateTime.UtcNow,
                 ExpireAt = DateTime.UtcNow.AddHours(input.ValidHours),
-
                 Status = TicketStatus.Sold
             };
 
@@ -189,6 +188,7 @@ namespace TransitWay.Controllers
 
             return manualUser;
         }
+
         [HttpPost("manual")]
         public IActionResult CreateManualTickets([FromBody] CreateManualTicketByDriverDto input)
         {
@@ -207,7 +207,6 @@ namespace TransitWay.Controllers
                 return BadRequest("Bus is not assigned to this route");
 
             var route = bus.Route;
-
             var ticketPrice = route.Zone?.Price;
 
             if (ticketPrice == null || ticketPrice <= 0)
@@ -238,7 +237,7 @@ namespace TransitWay.Controllers
 
             return Ok(new
             {
-                message = "Tickets created successfully ",
+                message = "Tickets created successfully",
                 busId = input.BusId,
                 routeId = input.RouteId,
                 numberOfTickets = tickets.Count,
@@ -269,6 +268,7 @@ namespace TransitWay.Controllers
                 newStatus = ticket.Status.ToString()
             });
         }
+
         [HttpPut("cancel/{id}")]
         public IActionResult CancelTicket(int id)
         {
@@ -278,7 +278,6 @@ namespace TransitWay.Controllers
                 return NotFound("Ticket not found");
 
             ticket.Status = TicketStatus.Cancelled;
-
             _context.SaveChanges();
 
             return Ok("Ticket cancelled");

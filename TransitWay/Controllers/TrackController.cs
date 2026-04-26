@@ -149,7 +149,6 @@ namespace TransitWay.Controllers
             _context.SaveChanges();
             return Ok(new { message = "Trip started successfully", tripId = trip.Id });
         }
-
         [HttpPost("end-trip/{busId}")]
         public IActionResult EndTrip(int busId)
         {
@@ -162,13 +161,15 @@ namespace TransitWay.Controllers
             trip.IsCompleted = true;
 
             var tickets = _context.Tickets
-                .Where(t => t.BusId == busId && t.TripEndTime == null
-                       && (t.Status == TicketStatus.Valid || t.Status == TicketStatus.Sold))
+                .Where(t => t.BusId == busId
+                       && t.TripEndTime == null
+                       && t.Status != TicketStatus.Expired
+                       && t.Status != TicketStatus.Cancelled)
                 .ToList();
 
             foreach (var ticket in tickets)
             {
-                ticket.TripStartTime ??= trip.StartTime; 
+                ticket.TripStartTime ??= trip.StartTime;
                 ticket.TripEndTime = DateTime.UtcNow;
                 ticket.Status = TicketStatus.Expired;
                 ticket.UsedAt = DateTime.UtcNow;

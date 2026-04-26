@@ -45,6 +45,13 @@ namespace TransitWay.Controllers
 
             foreach (var bus in buses)
             {
+                // ✅ تحقق إن في trip نشطة على الباص ده
+                var hasActiveTrip = _context.Trips
+                    .Any(t => t.BusId == bus.Id && !t.IsCompleted);
+
+                if (!hasActiveTrip)
+                    continue;
+
                 var lastLocation = _context.BusLocations
                     .Where(bl => bl.BusId == bus.Id)
                     .OrderByDescending(bl => bl.LastUpdatedAt)
@@ -69,7 +76,7 @@ namespace TransitWay.Controllers
             }
 
             if (selectedBus == null || selectedLocation == null)
-                return NotFound("No active buses found");
+                return NotFound("No active buses found on this route");
 
             double distanceToStationKm = minDistanceMeters / 1000.0;
 
@@ -104,7 +111,6 @@ namespace TransitWay.Controllers
             });
         }
 
-     
         private async Task<double> GetDistanceFromOrsm(
             double lat1, double lon1,
             double lat2, double lon2)

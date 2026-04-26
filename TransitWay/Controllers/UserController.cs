@@ -76,6 +76,29 @@ namespace TransitWay.Controllers
                 totalRatings = ratings.Count
             });
         }
-        
+
+        [HttpGet("all")]
+        public IActionResult GetAllUsers()
+        {
+            var users = _context.Users
+                .Where(u => u.Email != "manual.passenger@transitway.local")
+                .Select(u => new
+                {
+                    id = u.Id,
+                    fullName = u.FullName,
+                    email = u.Email,
+                    phone = u.Phone,
+                    balance = _context.Wallets
+                                   .Where(w => w.UserId == u.Id)
+                                   .Select(w => w.Balance)
+                                   .FirstOrDefault()
+                })
+                .ToList();
+
+            return Ok(users);
+        }
+
+
+
     }
 }
