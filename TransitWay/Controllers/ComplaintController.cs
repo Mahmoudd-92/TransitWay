@@ -21,15 +21,39 @@ public class ComplaintController : ControllerBase
         if (string.IsNullOrWhiteSpace(className))
             return "Unknown";
 
-        return className.ToLowerInvariant() switch
+        var normalized = className.ToLowerInvariant()
+                                  .Replace("(", "_")
+                                  .Replace(")", "")
+                                  .Trim();
+
+        return normalized switch
         {
             "damaged_window" => "Damaged Window",
             "damaged_seat" => "Damaged Seat",
-            "cigarettes" => "Smoking",
+            "cigarette" => "Smoking",
             "smoke" => "Smoking",
             "drink" => "Drink",
+            "trash_cardboard" => "Trash",
+            "trash_random" => "Trash",
+            "trash_paper" => "Trash",
+            "trash_plastic" => "Trash",
+            "trash_metal" => "Trash",
             var t when t.StartsWith("trash") => "Trash",
             _ => "Other"
+        };
+    }
+
+    private static string MapToPriority(string category)
+    {
+        return category switch
+        {
+            "Damaged Window" => "Critical",
+            "Damaged Seat" => "Critical",
+            "Smoking" => "High",
+            "Drink" => "Medium",
+            "Trash" => "Medium",
+            "Text Report" => "Low",
+            _ => "Low"
         };
     }
 
@@ -43,7 +67,6 @@ public class ComplaintController : ControllerBase
         _env = env;
     }
 
-
     [HttpGet]
     public async Task<IActionResult> GetAllComplaints()
     {
@@ -56,12 +79,16 @@ public class ComplaintController : ControllerBase
                 c.UserId,
                 c.ProblemDetected,
                 c.Category,
+                c.Priority,
+                c.Status,
+                c.ReporterName,
+                c.ReporterRole,
                 c.TextComplaint,
                 c.CreatedAt,
-                originalImage = string.IsNullOrEmpty(c.OriginalImagePath)
+                OriginalImage = string.IsNullOrEmpty(c.OriginalImagePath)
                     ? null
                     : $"{Request.Scheme}://{Request.Host}{c.OriginalImagePath}",
-                resultImage = string.IsNullOrEmpty(c.ResultImagePath)
+                ResultImage = string.IsNullOrEmpty(c.ResultImagePath)
                     ? null
                     : $"{Request.Scheme}://{Request.Host}{c.ResultImagePath}"
             })
@@ -70,7 +97,39 @@ public class ComplaintController : ControllerBase
         return Ok(complaints);
     }
 
-   
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats()
+    {
+        var complaints = await _context.Complaints.ToListAsync();
+
+        var stats = new
+        {
+            TotalReports = complaints.Count,
+            PendingReview = complaints.Count(c => c.Status == "Pending"),
+            Resolved = complaints.Count(c => c.Status == "Resolved"),
+            CriticalIssues = complaints.Count(c => c.Priority == "Critical")
+        };
+
+        return Ok(stats);
+    }
+
+    [HttpPatch("{id}/status")]
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusDto dto)
+    {
+        var complaint = await _context.Complaints.FindAsync(id);
+        if (complaint == null)
+            return NotFound();
+
+        var allowed = new[] { "Pending", "InProgress", "Resolved" };
+        if (!allowed.Contains(dto.Status))
+            return BadRequest("Invalid status value");
+
+        complaint.Status = dto.Status;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Status updated", complaint.Id, complaint.Status });
+    }
+
     [HttpPost("report")]
     public async Task<IActionResult> UploadComplaint([FromForm] ReportImageDto dto)
     {
@@ -100,10 +159,7 @@ public class ComplaintController : ControllerBase
 
             content.Add(fileContent, "file", dto.Image.FileName);
 
-            var aiResponse = await client.PostAsync(
-                $"{AiBaseUrl}/predict-upload/",
-                content);
-
+            var aiResponse = await client.PostAsync($"{AiBaseUrl}/predict-upload/", content);
             var json = await aiResponse.Content.ReadAsStringAsync();
 
             if (!aiResponse.IsSuccessStatusCode)
@@ -117,10 +173,7 @@ public class ComplaintController : ControllerBase
                 && predictionsArray.GetArrayLength() > 0)
             {
                 var firstPrediction = predictionsArray[0];
-                detectedClass = firstPrediction
-                    .GetProperty("class_name")
-                    .GetString();
-
+                detectedClass = firstPrediction.GetProperty("class_name").GetString();
                 problemDetected = !string.IsNullOrEmpty(detectedClass);
             }
 
@@ -138,9 +191,7 @@ public class ComplaintController : ControllerBase
             var originalFilePath = Path.Combine(originalFolder, originalFileName);
 
             using (var fileStream = new FileStream(originalFilePath, FileMode.Create))
-            {
                 await dto.Image.CopyToAsync(fileStream);
-            }
 
             var imageBytes = await client.GetByteArrayAsync(fullImageUrl);
             var resultFolder = Path.Combine(_env.WebRootPath, "uploads", "results");
@@ -163,6 +214,8 @@ public class ComplaintController : ControllerBase
             category = "Text Report";
         }
 
+        var priority = MapToPriority(category);
+
         var complaint = new Complaint
         {
             BusId = dto.BusId,
@@ -171,6 +224,8 @@ public class ComplaintController : ControllerBase
             ResultImagePath = resultImagePath,
             ProblemDetected = problemDetected,
             Category = category,
+            Priority = priority,
+            Status = "Pending",
             TextComplaint = dto.TextComplaint?.Trim()
         };
 
@@ -182,6 +237,8 @@ public class ComplaintController : ControllerBase
             message = "report send successfully",
             problemDetected,
             category,
+            priority,
+            status = "Pending",
             textComplaint = dto.TextComplaint,
             originalImage = string.IsNullOrEmpty(originalImageUrl) ? null : originalImageUrl,
             resultImage = string.IsNullOrEmpty(resultImageUrl) ? null : resultImageUrl

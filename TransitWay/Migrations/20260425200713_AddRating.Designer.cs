@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TransitWay.Data;
 
@@ -11,9 +12,11 @@ using TransitWay.Data;
 namespace GraduationProject.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260425200713_AddRating")]
+    partial class AddRating
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -536,12 +539,6 @@ namespace GraduationProject.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("TripEndTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("TripStartTime")
-                        .HasColumnType("datetime2");
-
                     b.Property<DateTime?>("UsedAt")
                         .HasColumnType("datetime2");
 
@@ -557,38 +554,6 @@ namespace GraduationProject.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Tickets");
-                });
-
-            modelBuilder.Entity("TransitWay.Entites.Trip", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("BusId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("EndTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("RouteId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("StartTime")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BusId");
-
-                    b.HasIndex("RouteId");
-
-                    b.ToTable("Trips");
                 });
 
             modelBuilder.Entity("TransitWay.Entites.User", b =>
@@ -877,25 +842,6 @@ namespace GraduationProject.Migrations
                     b.Navigation("Route");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("TransitWay.Entites.Trip", b =>
-                {
-                    b.HasOne("TransitWay.Entites.Bus", "Bus")
-                        .WithMany()
-                        .HasForeignKey("BusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("TransitWay.Entites.Route", "Route")
-                        .WithMany()
-                        .HasForeignKey("RouteId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Bus");
-
-                    b.Navigation("Route");
                 });
 
             modelBuilder.Entity("TransitWay.Entites.Wallet", b =>

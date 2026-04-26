@@ -14,6 +14,10 @@
       
         public string Category { get; set; } = "Unknown";
         public string? TextComplaint { get; set; }
+        public string Status { get; set; } = "Pending"; 
+        public string Priority { get; set; } = "Low";  
+        public string ReporterName { get; set; } = "";
+        public string ReporterRole { get; set; } = "Passenger"; 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public User User { get; set; }
         public Bus Bus { get; set; }

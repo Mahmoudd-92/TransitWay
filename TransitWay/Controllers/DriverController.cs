@@ -284,8 +284,95 @@ namespace TransitWay.Controllers
             return Ok(drivers);
         }
 
+        [HttpGet("details/{driverId}")]
+        public IActionResult GetDriverDetails(int driverId)
+        {
+            var driver = _context.Drivers
+                .Include(d => d.Bus)
+                .ThenInclude(b => b.Route)
+                .FirstOrDefault(d => d.Id == driverId);
 
+            if (driver == null) return NotFound("Driver not found");
+            if (driver.Bus == null) return BadRequest("Driver has no bus");
 
+            var busId = driver.Bus.Id;
+
+            var trips = _context.Trips
+                .Where(t => t.BusId == busId)
+                .ToList();
+
+            int totalTrips = trips.Count;
+
+            double totalHours = trips
+                .Where(t => t.EndTime != null)
+                .Sum(t => (t.EndTime.Value - t.StartTime).TotalHours);
+
+            var completedTrips = trips.Where(t => t.EndTime != null).ToList();
+
+            int onTimeTrips = completedTrips
+                .Count(t => (t.EndTime.Value - t.StartTime).TotalMinutes <= 60);
+
+            int onTimeRate = completedTrips.Any()
+                ? (int)((double)onTimeTrips / completedTrips.Count * 100)
+                : 0;
+
+            var ratings = _context.driverRatings
+                .Where(r => r.DriverId == driverId)
+                .ToList();
+            double rating = ratings.Any() ? ratings.Average(r => r.Rate) : 0;
+
+            var weekly = trips
+                .Where(t => t.StartTime >= DateTime.UtcNow.AddDays(-7))
+                .GroupBy(t => t.StartTime.DayOfWeek)
+                .Select(g => new { day = g.Key.ToString(), count = g.Count() })
+                .ToList();
+
+            var recentTrips = trips
+                .OrderByDescending(t => t.StartTime)
+                .Take(5)
+                .Select(t => new
+                {
+                    route = driver.Bus.Route?.Name ?? "Unknown",
+                    date = t.StartTime.ToLocalTime().ToString("dd MMM yyyy"),
+                    startTime = t.StartTime.ToLocalTime().ToString("hh:mm tt"),
+                    endTime = t.EndTime != null
+                                  ? t.EndTime.Value.ToLocalTime().ToString("hh:mm tt")
+                                  : "Running",
+                    duration = t.EndTime != null
+                                  ? $"{(t.EndTime.Value - t.StartTime).TotalMinutes:F0} min"
+                                  : "In Progress",
+                    status = t.IsCompleted ? "Completed" : "Running"
+                })
+                .ToList();
+
+            return Ok(new
+            {
+                driver = new
+                {
+                    driver.Id,
+                    driver.Name,
+                    driver.Email,
+                    driver.Phone,
+                    driver.LicenseNumber,
+                    driver.Status
+                },
+                bus = new
+                {
+                    driver.Bus.BusNumber,
+                    driver.Bus.PlateNumber,
+                    route = driver.Bus.Route?.Name
+                },
+                stats = new
+                {
+                    totalTrips,
+                    totalHours = Math.Round(totalHours, 1),
+                    rating = Math.Round(rating, 1),
+                    onTimeRate
+                },
+                weeklyActivity = weekly,
+                recentTrips = recentTrips
+            });
+        }
         [HttpGet("profile/{id}")]
         public IActionResult GetDriverProfile(int id)
         {

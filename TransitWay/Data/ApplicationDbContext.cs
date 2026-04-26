@@ -26,6 +26,8 @@ namespace TransitWay.Data
         public DbSet<Alert> Alerts { get; set; }
         public DbSet<Wallet> Wallets { get; set; }
         public DbSet<RouteQr> RouteQrs { get; set; }
+        public DbSet<DriverRating> driverRatings { get; set; }
+        public DbSet<Trip> Trips { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -174,7 +176,18 @@ namespace TransitWay.Data
                 .HasOne(r => r.Route)
                 .WithMany()
                 .HasForeignKey(r => r.RouteId)
-                .OnDelete(DeleteBehavior.NoAction); 
+                .OnDelete(DeleteBehavior.NoAction);
+            modelBuilder.Entity<Trip>()
+        .HasOne(t => t.Route)
+        .WithMany()
+        .HasForeignKey(t => t.RouteId)
+        .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Trip>()
+                .HasOne(t => t.Bus)
+                .WithMany()
+                .HasForeignKey(t => t.BusId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
         }
 }

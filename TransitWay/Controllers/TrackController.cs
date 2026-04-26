@@ -81,7 +81,7 @@ namespace TransitWay.Controllers
                     minDistanceMeters = dist;
             }
 
-            if (minDistanceMeters > 50) // 50 meters tolerance
+            if (minDistanceMeters > 50) 
             {
                 CreateAlert(bus, "OffRoute");
             }
@@ -113,99 +113,77 @@ namespace TransitWay.Controllers
                 bus.Id,
                 type);
         }
+        [HttpPost("start-trip/{busId}")]
+        public IActionResult StartTrip(int busId)
+        {
+            var bus = _context.Buses
+                .Include(b => b.Route)
+                .FirstOrDefault(b => b.Id == busId);
 
-        
-        //[HttpGet("eta/{busId}")]
-        //public IActionResult GetETA(int busId)
-        //{
-        //    var bus = _context.Buses
-        //        .FirstOrDefault(b => b.Id == busId);
+            if (bus == null)
+                return NotFound("Bus not found");
 
-        //    if (bus == null)
-        //        return NotFound("Bus not found");
+            if (bus.RouteId == null)
+                return BadRequest("Bus has no route assigned");
 
-        //    var lastLocation = _context.BusLocations
-        //        .Where(l => l.BusId == bus.Id)
-        //        .OrderByDescending(l => l.LastUpdatedAt)
-        //        .FirstOrDefault();
+            var existing = _context.Trips
+                .FirstOrDefault(t => t.BusId == busId && !t.IsCompleted);
+            if (existing != null)
+                return BadRequest("Trip already in progress");
 
-        //    if (lastLocation == null)
-        //        return NotFound("No location data");
+            var trip = new Trip
+            {
+                BusId = busId,
+                RouteId = bus.RouteId,
+                StartTime = DateTime.UtcNow,
+                IsCompleted = false
+            };
+            _context.Trips.Add(trip);
 
-        //    var routePoints = _context.RoutePoints
-        //        .Where(r => r.RouteId == bus.RouteId)
-        //        .OrderBy(r => r.Id)
-        //        .ToList();
+            var tickets = _context.Tickets
+                .Where(t => t.BusId == busId && t.TripStartTime == null)
+                .ToList();
+            foreach (var ticket in tickets)
+                ticket.TripStartTime = DateTime.UtcNow;
 
-        //    if (!routePoints.Any())
-        //        return NotFound("No route points");
+            _context.SaveChanges();
+            return Ok(new { message = "Trip started successfully", tripId = trip.Id });
+        }
 
-        //    int nearestIndex = 0;
-        //    double minDistanceMeters = double.MaxValue;
+        [HttpPost("end-trip/{busId}")]
+        public IActionResult EndTrip(int busId)
+        {
+            var trip = _context.Trips
+                .FirstOrDefault(t => t.BusId == busId && !t.IsCompleted);
+            if (trip == null)
+                return BadRequest("No active trip found");
 
-        //    for (int i = 0; i < routePoints.Count; i++)
-        //    {
-        //        double dist = CalculateDistanceMeters(
-        //            lastLocation.Latitude,
-        //            lastLocation.Longitude,
-        //            routePoints[i].Latitude,
-        //            routePoints[i].Longitude);
+            trip.EndTime = DateTime.UtcNow;
+            trip.IsCompleted = true;
 
-        //        if (dist < minDistanceMeters)
-        //        {
-        //            minDistanceMeters = dist;
-        //            nearestIndex = i;
-        //        }
-        //    }
+            var tickets = _context.Tickets
+                .Where(t => t.BusId == busId && t.TripEndTime == null
+                       && (t.Status == TicketStatus.Valid || t.Status == TicketStatus.Sold))
+                .ToList();
 
-        //    double remainingDistanceMeters = 0;
+            foreach (var ticket in tickets)
+            {
+                ticket.TripStartTime ??= trip.StartTime; 
+                ticket.TripEndTime = DateTime.UtcNow;
+                ticket.Status = TicketStatus.Expired;
+                ticket.UsedAt = DateTime.UtcNow;
+            }
 
-        //    for (int i = nearestIndex; i < routePoints.Count - 1; i++)
-        //    {
-        //        remainingDistanceMeters += CalculateDistanceMeters(
-        //            routePoints[i].Latitude,
-        //            routePoints[i].Longitude,
-        //            routePoints[i + 1].Latitude,
-        //            routePoints[i + 1].Longitude);
-        //    }
-
-        //    double remainingDistanceKm = remainingDistanceMeters / 1000.0;
-
-        //    double speedKmPerHour = lastLocation.Speed > 0 ? lastLocation.Speed : 30;
-
-        //    double etaHoursDecimal = remainingDistanceKm / speedKmPerHour;
-
-        //    int totalMinutes = (int)Math.Ceiling(etaHoursDecimal * 60);
-
-        //    if (totalMinutes < 1)
-        //        totalMinutes = 1;
-
-        //    int hours = totalMinutes / 60;
-        //    int minutes = totalMinutes % 60;
-
-        //    string etaFormatted;
-
-        //    if (hours > 0)
-        //        etaFormatted = $"{hours} hr {minutes} min";
-        //    else
-        //        etaFormatted = $"{minutes} min";
-
-        //    return Ok(new
-        //    {
-        //        busId = bus.Id,
-        //        remainingDistanceKm = Math.Round(remainingDistanceKm, 2),
-        //        eta = etaFormatted
-        //    });
-        //}
-
-     
+            _context.SaveChanges();
+            return Ok(new { message = "Trip ended successfully", completedTickets = tickets.Count });
+        }
         private double CalculateDistanceMeters(
             double lat1,
             double lon1,
             double lat2,
             double lon2)
         {
-            var R = 6371000; // meters
+            var R = 6371000; 
             var dLat = (lat2 - lat1) * Math.PI / 180;
             var dLon = (lon2 - lon1) * Math.PI / 180;
 

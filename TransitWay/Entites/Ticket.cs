@@ -20,6 +20,8 @@
         public TicketStatus Status { get; set; } = TicketStatus.Sold;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? TripStartTime { get; set; }  
+        public DateTime? TripEndTime { get; set; }
 
         public DateTime ExpireAt { get; set; }
 

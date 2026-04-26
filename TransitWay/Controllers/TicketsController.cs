@@ -28,6 +28,8 @@ namespace TransitWay.Controllers
             return "Sold";
         }
 
+        
+
         [HttpGet("user/{userId}")]
         public IActionResult GetUserTickets(int userId)
         {
@@ -51,7 +53,6 @@ namespace TransitWay.Controllers
 
             return Ok(tickets);
         }
-
         [HttpGet("driver/{driverId}")]
         public IActionResult GetBusTickets(int driverId)
         {
@@ -146,6 +147,7 @@ namespace TransitWay.Controllers
                 UserId = input.UserId,
                 BusId = input.BusId,
                 RouteId = input.RouteId,
+                QRToken = Guid.NewGuid().ToString("N"),
                 Price = input.Price,
                 CreatedAt = DateTime.UtcNow,
                 ExpireAt = DateTime.UtcNow.AddHours(input.ValidHours),
@@ -243,6 +245,28 @@ namespace TransitWay.Controllers
                 pricePerTicket = ticketPrice.Value,
                 dateTime = now.ToLocalTime(),
                 ticketIds = tickets.Select(t => t.Id).ToList()
+            });
+        }
+
+        [HttpPut("status/{id}")]
+        public IActionResult UpdateTicketStatus(int id, [FromQuery] int status)
+        {
+            var ticket = _context.Tickets.Find(id);
+
+            if (ticket == null)
+                return NotFound("Ticket not found");
+
+            if (!Enum.IsDefined(typeof(TicketStatus), status))
+                return BadRequest("Invalid status. Valid values: 1=Valid, 2=Sold, 3=Expired, 4=Cancelled");
+
+            ticket.Status = (TicketStatus)status;
+            _context.SaveChanges();
+
+            return Ok(new
+            {
+                message = "Ticket status updated successfully",
+                ticketId = id,
+                newStatus = ticket.Status.ToString()
             });
         }
         [HttpPut("cancel/{id}")]
