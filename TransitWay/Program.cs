@@ -6,10 +6,16 @@ using TransitWay.Services.AttachmentService;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// ? AddControllers ??? ????? ?? ?? ??? JsonOptions
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler =
+            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.DefaultIgnoreCondition =
+            System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    });
 
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -26,59 +32,35 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         })
 );
 
+// ? AddCors ??? ????? ??
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        policy =>
-            policy.AllowAnyOrigin()
-                  .AllowAnyHeader()
-                  .AllowAnyMethod());
-});
-
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Converters.Add(
-            new System.Text.Json.Serialization.JsonStringEnumConverter());
-    });
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll",
-        builder =>
-        {
-            builder
-                .AllowAnyOrigin()
-                .AllowAnyHeader()
-                .AllowAnyMethod();
-        });
+    options.AddPolicy("AllowAll", policy =>
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod());
 });
 
 builder.Services.AddSignalR();
-//builder.Services.AddHostedService<LocationSimulationService>();
 builder.Services.AddHttpClient();
 builder.Services.AddAuthorization();
-
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<GoogleAuthService>();
 builder.Services.AddHostedService<LocationSimulationService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
-var app = builder.Build();
 
+var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
-
 app.UseHttpsRedirection();
 
-app.UseStaticFiles();
+// ? UseStaticFiles ??? ????? ??
 app.UseStaticFiles();
 
 app.UseCors("AllowAll");
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 app.MapHub<TrackingHub>("/trackingHub");
 

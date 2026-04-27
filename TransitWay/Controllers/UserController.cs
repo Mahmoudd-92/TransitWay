@@ -154,24 +154,29 @@ namespace TransitWay.Controllers
         public IActionResult GetAllUsers()
         {
             var users = _context.Users
-                .Where(u => u.Email != "manual.passenger@transitway.local") 
+                .Where(u => u.Email != "manual.passenger@transitway.local")
                 .Select(u => new
                 {
                     id = u.Id,
                     fullName = u.FullName,
                     email = u.Email,
                     phone = u.Phone,
-                    photoName = u.Photo,
                     isBanned = u.IsBanned,
                     banReason = u.BanReason,
                     bannedAt = u.BannedAt,
-                    tickets = u.Tickets.Count(),
+
+                    ticketCount = u.Tickets.Count(),
+
+                    soldTickets = u.Tickets.Count(t => t.Status == TicketStatus.Sold),
+                    expiredTickets = u.Tickets.Count(t => t.Status == TicketStatus.Expired),
+
                     warningCount = _context.UserWarnings
-                        .Count(w => w.UserId == u.Id && w.Type == ActionType.Warning),
+                       .Count(w => w.UserId == u.Id && w.Type == ActionType.Warning),
                     balance = _context.Wallets
-                        .Where(w => w.UserId == u.Id)
-                        .Select(w => w.Balance)
-                        .FirstOrDefault()
+                       .Where(w => w.UserId == u.Id)
+                       .Select(w => w.Balance)
+                       .FirstOrDefault(),
+                    photoName = u.Photo
                 }).ToList()
                 .Select(u => new
                 {
@@ -184,9 +189,12 @@ namespace TransitWay.Controllers
                     u.banReason,
                     u.bannedAt,
                     u.warningCount,
-                    u.tickets,
+                    u.ticketCount,
+                    u.soldTickets,
+                    u.expiredTickets,
                     u.balance
-                }).ToList();
+                })
+                .ToList();
 
             return Ok(users);
         }
