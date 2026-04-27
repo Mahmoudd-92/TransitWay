@@ -9,7 +9,6 @@ public class User
     public string PasswordHash { get; set; }
     public decimal Balance { get; set; }
     public string Photo { get; set; } = null!;
-    public int tickets { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool IsBanned { get; set; } = false;
     public string? BanReason { get; set; }
