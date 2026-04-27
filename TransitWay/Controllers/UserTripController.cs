@@ -15,7 +15,7 @@ namespace TransitWay.Controllers
         private readonly HttpClient _httpClient;
 
         private const int WorkStartHour = 6;   
-        private const int WorkEndHour = 0;    
+        private const int WorkEndHour = 24;    
 
         public UserTripController(ApplicationDbContext context, HttpClient httpClient)
         {
@@ -26,7 +26,6 @@ namespace TransitWay.Controllers
         [HttpPost("search")]
         public async Task<IActionResult> SearchTrip(UserTripRequestDto request)
         {
-            // ✅ بتوقيت مصر
             var egyptTime = TimeZoneInfo.ConvertTimeFromUtc(
                 DateTime.UtcNow,
                 TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time")
@@ -42,11 +41,10 @@ namespace TransitWay.Controllers
                 {
                     message = "Sorry, service is not available at this time. Working hours are from 6:00 AM to 12:00 PM.",
                     currentTime = egyptTime.ToString("hh:mm tt"),
-                    workingHours = "12:00 AM - 3:00 PM"
+                    workingHours = "6:00 AM - 12:00 PM"
                 });
             }
 
-            // ==================== باقي الكود كما هو ====================
 
             var startStation = _context.Stations.FirstOrDefault(s => s.Id == request.StartStationId);
             var endStation = _context.Stations.FirstOrDefault(s => s.Id == request.EndStationId);

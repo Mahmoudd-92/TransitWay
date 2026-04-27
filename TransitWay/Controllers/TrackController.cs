@@ -15,6 +15,9 @@ namespace TransitWay.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IHubContext<TrackingHub> _hub;
 
+        private const int WorkStartHour = 6;
+        private const int WorkEndHour = 24;    
+
         public TrackController(
             ApplicationDbContext context,
             IHubContext<TrackingHub> hub)
@@ -57,7 +60,6 @@ namespace TransitWay.Controllers
             return Ok(new { message = "Location updated successfully" });
         }
 
-       
         private void CheckOffRoute(Bus bus, BusLocationDto loc)
         {
             var routePoints = _context.RoutePoints
@@ -81,7 +83,7 @@ namespace TransitWay.Controllers
                     minDistanceMeters = dist;
             }
 
-            if (minDistanceMeters > 50) 
+            if (minDistanceMeters > 50)
             {
                 CreateAlert(bus, "OffRoute");
             }
@@ -113,9 +115,27 @@ namespace TransitWay.Controllers
                 bus.Id,
                 type);
         }
+
         [HttpPost("start-trip/{busId}")]
         public IActionResult StartTrip(int busId)
         {
+            var egyptTime = TimeZoneInfo.ConvertTimeFromUtc(
+                DateTime.UtcNow,
+                TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time")
+            );
+
+            int currentHour = egyptTime.Hour;
+
+            if (currentHour < WorkStartHour || currentHour >= WorkEndHour)
+            {
+                return BadRequest(new
+                {
+                    message = "Cannot start a trip outside working hours. Working hours are from 6:00 AM to 12:00 AM.",
+                    currentTime = egyptTime.ToString("hh:mm tt"),
+                    workingHours = "6:00 AM - 12:00 AM"
+                });
+            }
+
             var bus = _context.Buses
                 .Include(b => b.Route)
                 .FirstOrDefault(b => b.Id == busId);
@@ -149,6 +169,7 @@ namespace TransitWay.Controllers
             _context.SaveChanges();
             return Ok(new { message = "Trip started successfully", tripId = trip.Id });
         }
+
         [HttpPost("end-trip/{busId}")]
         public IActionResult EndTrip(int busId)
         {
@@ -178,13 +199,14 @@ namespace TransitWay.Controllers
             _context.SaveChanges();
             return Ok(new { message = "Trip ended successfully", completedTickets = tickets.Count });
         }
+
         private double CalculateDistanceMeters(
             double lat1,
             double lon1,
             double lat2,
             double lon2)
         {
-            var R = 6371000; 
+            var R = 6371000;
             var dLat = (lat2 - lat1) * Math.PI / 180;
             var dLon = (lon2 - lon1) * Math.PI / 180;
 
