@@ -2,6 +2,7 @@
 using TransitWay.Data;
 using TransitWay.Dtos;
 using TransitWay.Entites;
+using TransitWay.Services.AttachmentService;
 
 namespace TransitWay.Controllers
 {
@@ -10,9 +11,12 @@ namespace TransitWay.Controllers
     public class UserController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        public UserController(ApplicationDbContext context)
+        private readonly IAttachmentService _attachmentService;
+
+        public UserController(ApplicationDbContext context, IAttachmentService attachmentService)
         {
             _context = context;
+            _attachmentService = attachmentService;
         }
 
         private string? BuildUserPhotoUrl(string? photoName)
@@ -147,6 +151,48 @@ namespace TransitWay.Controllers
                 message = "Rating submitted successfully",
                 averageRating = Math.Round(ratings.Average(r => r.Rate), 1),
                 totalRatings = ratings.Count
+            });
+        }
+
+        [HttpPut("{id}/profile")]
+        public IActionResult UpdateUserProfile(int id, [FromForm] UpdateUserProfileDto dto)
+        {
+            var user = _context.Users.Find(id);
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            if (_context.Users.Any(u => u.Id != id && u.Email == dto.Email))
+                return BadRequest(new { message = "Email already exists." });
+
+            if (!string.IsNullOrWhiteSpace(dto.Phone) && _context.Users.Any(u => u.Id != id && u.Phone == dto.Phone))
+                return BadRequest(new { message = "Phone already exists." });
+
+            if (dto.Photo != null && dto.Photo.Length > 0)
+            {
+                var photoName = _attachmentService.Upload("users", dto.Photo);
+                if (string.IsNullOrWhiteSpace(photoName))
+                    return BadRequest(new { message = "Invalid photo. Only jpg, jpeg, png up to 5MB are allowed." });
+
+                if (!string.IsNullOrWhiteSpace(user.Photo))
+                    _attachmentService.Delete(user.Photo, "users");
+
+                user.Photo = photoName;
+            }
+
+            user.FullName = dto.FullName;
+            user.Email = dto.Email;
+            user.Phone = dto.Phone;
+
+            _context.SaveChanges();
+
+            return Ok(new
+            {
+                message = "Profile updated successfully",
+                user.Id,
+                user.FullName,
+                user.Email,
+                user.Phone,
+                photo = BuildUserPhotoUrl(user.Photo)
             });
         }
 
