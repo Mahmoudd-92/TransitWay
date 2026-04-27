@@ -8,6 +8,7 @@ public class User
     public string? Phone { get; set; }
     public string PasswordHash { get; set; }
     public decimal Balance { get; set; }
+    public string Photo { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
     public bool IsBanned { get; set; } = false;
     public string? BanReason { get; set; }

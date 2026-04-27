@@ -57,7 +57,6 @@ namespace TransitWay.Controllers
 
             if (_context.Drivers.Any(d => d.Phone == dto.Phone))
                 return BadRequest("Phone already exists.");
-
             if (dto.Photo == null || dto.Photo.Length == 0)
                 return BadRequest("Driver photo is required.");
 

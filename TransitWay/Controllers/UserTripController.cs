@@ -45,7 +45,6 @@ namespace TransitWay.Controllers
 
             foreach (var bus in buses)
             {
-                // ✅ تحقق إن في trip نشطة على الباص ده
                 var hasActiveTrip = _context.Trips
                     .Any(t => t.BusId == bus.Id && !t.IsCompleted);
 
