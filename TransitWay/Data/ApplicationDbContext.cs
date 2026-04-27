@@ -28,7 +28,8 @@ namespace TransitWay.Data
         public DbSet<RouteQr> RouteQrs { get; set; }
         public DbSet<DriverRating> driverRatings { get; set; }
         public DbSet<Trip> Trips { get; set; }
-
+        public DbSet<UserWarning> UserWarnings { get; set; }
+        public DbSet<UserNotification> UserNotifications { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

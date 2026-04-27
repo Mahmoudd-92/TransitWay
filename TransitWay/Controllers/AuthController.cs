@@ -71,33 +71,31 @@ namespace TransitWay.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginDto dto)
         {
-            var user = _context.Users.FirstOrDefault(u => u.Email == dto.Email);
-            if (user != null && BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-            {
-                return Ok(new
-                {
-                    Type = "User",
-                    user.Id,
-                    user.FullName,
-                    user.Email
-                });
-            }
+            var user = _context.Users
+                .FirstOrDefault(u => u.Email == dto.Email);
 
-            var driver = _context.Drivers.FirstOrDefault(d => d.Email == dto.Email);
-            if (driver != null && BCrypt.Net.BCrypt.Verify(dto.Password, driver.PasswordHash))
-            {
-                return Ok(new
-                {
-                    Type = "Driver",
-                    driver.Id,
-                    driver.Name,
-                    driver.Email
-                });
-            }
+            if (user == null)
+                return NotFound(new { message = "User not found" });
 
-            return Unauthorized("Invalid email or password");
+            if (user.IsBanned)
+                return StatusCode(403, new
+                {
+                    message = "Your account has been suspended",
+                    reason = user.BanReason,
+                    bannedAt = user.BannedAt
+                });
+
+            if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
+                return Unauthorized(new { message = "Invalid password" });
+
+            return Ok(new
+            {
+                message = "Login successful",
+                userId = user.Id,
+                fullName = user.FullName,
+                email = user.Email
+            });
         }
-
         [HttpPost("get-email")]
         public IActionResult GetEmail(PhoneRequestDto input)
         {

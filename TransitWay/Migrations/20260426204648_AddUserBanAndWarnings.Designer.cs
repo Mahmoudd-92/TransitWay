@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TransitWay.Data;
 
@@ -11,9 +12,11 @@ using TransitWay.Data;
 namespace GraduationProject.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260426204648_AddUserBanAndWarnings")]
+    partial class AddUserBanAndWarnings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -595,7 +598,7 @@ namespace GraduationProject.Migrations
                     b.ToTable("Trips");
                 });
 
-            modelBuilder.Entity("TransitWay.Entites.UserNotification", b =>
+            modelBuilder.Entity("TransitWay.Entites.User", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -603,28 +606,39 @@ namespace GraduationProject.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Body")
-                        .IsRequired()
+                    b.Property<decimal>("Balance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("BanReason")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("BannedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<bool>("IsRead")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Title")
+                    b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsBanned")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Phone")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserNotifications");
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("TransitWay.Entites.UserWarning", b =>
@@ -641,9 +655,6 @@ namespace GraduationProject.Migrations
                     b.Property<string>("Reason")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("int");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
@@ -699,52 +710,6 @@ namespace GraduationProject.Migrations
                     b.HasIndex("CreatedByAdminId");
 
                     b.ToTable("Zones");
-                });
-
-            modelBuilder.Entity("User", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Balance")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("BanReason")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("BannedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("FcmToken")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("FullName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsBanned")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Phone")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("Driver", b =>
@@ -821,7 +786,7 @@ namespace GraduationProject.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("User", "User")
+                    b.HasOne("TransitWay.Entites.User", "User")
                         .WithMany("Complaints")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -853,7 +818,7 @@ namespace GraduationProject.Migrations
 
             modelBuilder.Entity("TransitWay.Entites.Payment", b =>
                 {
-                    b.HasOne("User", "User")
+                    b.HasOne("TransitWay.Entites.User", "User")
                         .WithMany("Payments")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -942,7 +907,7 @@ namespace GraduationProject.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("User", "User")
+                    b.HasOne("TransitWay.Entites.User", "User")
                         .WithMany("Tickets")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -974,20 +939,9 @@ namespace GraduationProject.Migrations
                     b.Navigation("Route");
                 });
 
-            modelBuilder.Entity("TransitWay.Entites.UserNotification", b =>
-                {
-                    b.HasOne("User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("TransitWay.Entites.UserWarning", b =>
                 {
-                    b.HasOne("User", "User")
+                    b.HasOne("TransitWay.Entites.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -998,7 +952,7 @@ namespace GraduationProject.Migrations
 
             modelBuilder.Entity("TransitWay.Entites.Wallet", b =>
                 {
-                    b.HasOne("User", "User")
+                    b.HasOne("TransitWay.Entites.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1055,18 +1009,18 @@ namespace GraduationProject.Migrations
                     b.Navigation("Stations");
                 });
 
-            modelBuilder.Entity("TransitWay.Entites.Zone", b =>
-                {
-                    b.Navigation("Routes");
-                });
-
-            modelBuilder.Entity("User", b =>
+            modelBuilder.Entity("TransitWay.Entites.User", b =>
                 {
                     b.Navigation("Complaints");
 
                     b.Navigation("Payments");
 
                     b.Navigation("Tickets");
+                });
+
+            modelBuilder.Entity("TransitWay.Entites.Zone", b =>
+                {
+                    b.Navigation("Routes");
                 });
 #pragma warning restore 612, 618
         }
