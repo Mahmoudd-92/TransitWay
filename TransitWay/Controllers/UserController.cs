@@ -154,7 +154,7 @@ namespace TransitWay.Controllers
         public IActionResult GetAllUsers()
         {
             var users = _context.Users
-                .Where(u => u.Email != "manual.passenger@transitway.local")
+                .Where(u => u.Email != "manual.passenger@transitway.local") 
                 .Select(u => new
                 {
                     id = u.Id,
