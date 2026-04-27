@@ -24,12 +24,29 @@ namespace TransitWay.Controllers
             _attachmentService = attachmentService;
         }
 
+        private string? BuildUserPhotoUrl(string? photoName)
+        {
+            if (string.IsNullOrWhiteSpace(photoName))
+                return null;
+
+            return $"{Request.Scheme}://{Request.Host}/images/users/{photoName}";
+        }
 
         [HttpPost("user/register")]
-        public IActionResult UserRegister([FromBody] RegisterDto dto)
+        public IActionResult UserRegister([FromForm] UserRegisterDto dto)
         {
             if (_context.Users.Any(u => u.Email == dto.Email))
                 return BadRequest("Email already exists.");
+
+            if (_context.Users.Any(u => u.Phone == dto.Phone))
+                return BadRequest("Phone already exists.");
+
+            if (dto.Photo == null || dto.Photo.Length == 0)
+                return BadRequest("User photo is required.");
+
+            var photoName = _attachmentService.Upload("users", dto.Photo);
+            if (string.IsNullOrWhiteSpace(photoName))
+                return BadRequest("Invalid photo. Only jpg, jpeg, png up to 5MB are allowed.");
 
             var user = new User
             {
@@ -37,6 +54,7 @@ namespace TransitWay.Controllers
                 Email = dto.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
                 Phone = dto.Phone,
+                Photo = photoName,
                 Balance = 0,
                 CreatedAt = DateTime.UtcNow
             };
@@ -44,14 +62,18 @@ namespace TransitWay.Controllers
             _context.Users.Add(user);
             _context.SaveChanges();
 
-            return Ok("User registered successfully.");
+            return Ok(new
+            {
+                message = "User registered successfully.",
+                photo = BuildUserPhotoUrl(user.Photo)
+            });
         }
 
 
 
         [HttpPost("driver/register")]
         public IActionResult DriverRegister([FromForm] DriverRegisterDto dto)
-        {
+            {
             if (_context.Drivers.Any(d => d.Email == dto.Email))
                 return BadRequest("Email already exists.");
 
@@ -108,12 +130,15 @@ namespace TransitWay.Controllers
 
             return Ok(new
             {
+                Type = "User",
                 message = "Login successful",
-                userId = user.Id,
-                fullName = user.FullName,
-                email = user.Email
+                user.Id,
+                user.FullName,
+                user.Email,
+                Photo = BuildUserPhotoUrl(user.Photo)
             });
         }
+
         [HttpPost("get-email")]
         public IActionResult GetEmail(PhoneRequestDto input)
         {

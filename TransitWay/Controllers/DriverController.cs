@@ -81,6 +81,7 @@ namespace TransitWay.Controllers
         {
             var drivers = _context.Drivers
                 .Include(d => d.Bus)
+                .ToList()
                 .Select(d => new
                 {
                     d.Id,
