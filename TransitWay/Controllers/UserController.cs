@@ -154,14 +154,14 @@ namespace TransitWay.Controllers
         public IActionResult GetAllUsers()
         {
             var users = _context.Users
-                .Where(u => u.Email != "manual.passenger@transitway.local")
+                .Where(u => u.Email != "manual.passenger@transitway.local") 
                 .Select(u => new
                 {
                     id = u.Id,
                     fullName = u.FullName,
                     email = u.Email,
                     phone = u.Phone,
-                    photo = BuildUserPhotoUrl(u.Photo),
+                    photoName = u.Photo,
                     isBanned = u.IsBanned,
                     banReason = u.BanReason,
                     bannedAt = u.BannedAt,
@@ -171,8 +171,20 @@ namespace TransitWay.Controllers
                         .Where(w => w.UserId == u.Id)
                         .Select(w => w.Balance)
                         .FirstOrDefault()
-                })
-                .ToList();
+                }).ToList()
+                .Select(u => new
+                {
+                    u.id,
+                    u.fullName,
+                    u.email,
+                    u.phone,
+                    photo = BuildUserPhotoUrl(u.photoName),
+                    u.isBanned,
+                    u.banReason,
+                    u.bannedAt,
+                    u.warningCount,
+                    u.balance
+                }).ToList();
 
             return Ok(users);
         }
