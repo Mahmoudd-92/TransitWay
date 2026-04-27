@@ -165,6 +165,7 @@ namespace TransitWay.Controllers
                     isBanned = u.IsBanned,
                     banReason = u.BanReason,
                     bannedAt = u.BannedAt,
+                    tickets = u.Tickets.Count(),
                     warningCount = _context.UserWarnings
                         .Count(w => w.UserId == u.Id && w.Type == ActionType.Warning),
                     balance = _context.Wallets
@@ -183,6 +184,7 @@ namespace TransitWay.Controllers
                     u.banReason,
                     u.bannedAt,
                     u.warningCount,
+                    u.tickets,
                     u.balance
                 }).ToList();
 

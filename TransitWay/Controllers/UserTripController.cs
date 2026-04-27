@@ -57,7 +57,12 @@ namespace TransitWay.Controllers
 
             var routeId = startStation.RouteId;
 
-            var buses = _context.Buses.Where(b => b.RouteId == routeId).ToList();
+            var buses = _context.Buses
+     .Include(b => b.Driver)
+     .Where(b => b.RouteId == routeId
+              && b.Driver != null
+              && b.Driver.Status == "Active")
+     .ToList();
 
             if (!buses.Any())
                 return NotFound("No buses available");

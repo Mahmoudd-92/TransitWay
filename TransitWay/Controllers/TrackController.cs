@@ -16,7 +16,7 @@ namespace TransitWay.Controllers
         private readonly IHubContext<TrackingHub> _hub;
 
         private const int WorkStartHour = 6;
-        private const int WorkEndHour = 24;    
+        private const int WorkEndHour = 24;
 
         public TrackController(
             ApplicationDbContext context,
@@ -145,6 +145,15 @@ namespace TransitWay.Controllers
 
             if (bus.RouteId == null)
                 return BadRequest("Bus has no route assigned");
+
+            var driver = _context.Drivers
+                .FirstOrDefault(d => d.BusId == busId);
+
+            if (driver == null)
+                return BadRequest(new { message = "No driver assigned to this bus" });
+
+            if (driver.Status != "Active")
+                return BadRequest(new { message = "Driver is inactive. Only active drivers can start a trip." });
 
             var existing = _context.Trips
                 .FirstOrDefault(t => t.BusId == busId && !t.IsCompleted);
