@@ -13,6 +13,7 @@
         public string PhoneNumber { get; set; }
 
         public string PasswordHash { get; set; }
+        public string? PhotoPath { get; set; }
         public string Role { get; set; } = "Admin";
 
         public string Status { get; set; } 

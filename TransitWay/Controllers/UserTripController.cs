@@ -14,6 +14,10 @@ namespace TransitWay.Controllers
         private readonly ApplicationDbContext _context;
         private readonly HttpClient _httpClient;
 
+        // ✅ أوقات العمل: من 12 بليل (0) لـ 3 العصر (15)
+        private const int WorkStartHour = 0;   // 12 بليل
+        private const int WorkEndHour = 15;    // 3 العصر
+
         public UserTripController(ApplicationDbContext context, HttpClient httpClient)
         {
             _context = context;
@@ -23,6 +27,29 @@ namespace TransitWay.Controllers
         [HttpPost("search")]
         public async Task<IActionResult> SearchTrip(UserTripRequestDto request)
         {
+            // ✅ بتوقيت مصر
+            var egyptTime = TimeZoneInfo.ConvertTimeFromUtc(
+                DateTime.UtcNow,
+                TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time")
+            );
+
+            int currentHour = egyptTime.Hour;
+
+            // ✅ لو برا أوقات العمل (قبل 12 بليل أو بعد 3 العصر)
+            bool isWithinWorkingHours = currentHour >= WorkStartHour && currentHour < WorkEndHour;
+
+            if (!isWithinWorkingHours)
+            {
+                return BadRequest(new
+                {
+                    message = "Sorry, service is not available at this time. Working hours are from 12:00 AM to 3:00 PM.",
+                    currentTime = egyptTime.ToString("hh:mm tt"),
+                    workingHours = "12:00 AM - 3:00 PM"
+                });
+            }
+
+            // ==================== باقي الكود كما هو ====================
+
             var startStation = _context.Stations.FirstOrDefault(s => s.Id == request.StartStationId);
             var endStation = _context.Stations.FirstOrDefault(s => s.Id == request.EndStationId);
 

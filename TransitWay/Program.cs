@@ -72,6 +72,7 @@ app.UseSwaggerUI();
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();
+app.UseStaticFiles();
 
 app.UseCors("AllowAll");
 
