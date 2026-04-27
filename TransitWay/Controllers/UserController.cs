@@ -10,10 +10,17 @@ namespace TransitWay.Controllers
     public class UserController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-
         public UserController(ApplicationDbContext context)
         {
             _context = context;
+        }
+
+        private string? BuildUserPhotoUrl(string? photoName)
+        {
+            if (string.IsNullOrWhiteSpace(photoName))
+                return null;
+
+            return $"{Request.Scheme}://{Request.Host}/images/users/{photoName}";
         }
 
         private void CreateNotification(int userId, string title, string body)
@@ -154,6 +161,7 @@ namespace TransitWay.Controllers
                     fullName = u.FullName,
                     email = u.Email,
                     phone = u.Phone,
+                    photo = BuildUserPhotoUrl(u.Photo),
                     isBanned = u.IsBanned,
                     banReason = u.BanReason,
                     bannedAt = u.BannedAt,
@@ -309,32 +317,95 @@ namespace TransitWay.Controllers
         [HttpGet("{userId}/actions")]
         public IActionResult GetUserActions(int userId)
         {
-            var user = _context.Users.Find(userId);
+            var user = _context.Users.FirstOrDefault(u => u.Id == userId);
             if (user == null)
-                return NotFound(new { message = "User not found" });
+                return NotFound("User not found");
 
-            var actions = _context.UserWarnings
-                .Where(w => w.UserId == userId)
-                .OrderByDescending(w => w.CreatedAt)
-                .Select(w => new
+            var tickets = _context.Tickets
+                .Where(t => t.UserId == userId)
+                .OrderByDescending(t => t.CreatedAt)
+                .Take(5)
+                .Select(t => new
                 {
-                    id = w.Id,
-                    type = w.Type.ToString(),
-                    reason = w.Reason,
-                    createdAt = w.CreatedAt
+                    type = "ticket",
+                    date = t.CreatedAt,
+                    amount = t.Price,
+                    status = t.Status.ToString()
                 })
+                .ToList();
+
+            var payments = _context.Payments
+                .Where(p => p.UserId == userId)
+                .OrderByDescending(p => p.CreatedAt)
+                .Take(5)
+                .Select(p => new
+                {
+                    type = "payment",
+                    date = p.CreatedAt,
+                    amount = p.Amount,
+                    status = p.Status
+                })
+                .ToList();
+
+            var complaints = _context.Complaints
+                .Where(c => c.UserId == userId)
+                .OrderByDescending(c => c.CreatedAt)
+                .Take(5)
+                .Select(c => new
+                {
+                    type = "complaint",
+                    date = c.CreatedAt,
+                    category = c.Category,
+                    status = c.Status
+                })
+                .ToList();
+
+            var recentActions = tickets
+                .Select(t => new
+                {
+                    t.type,
+                    t.date,
+                    amount = (decimal?)t.amount,
+                    category = (string?)null,
+                    t.status
+                })
+                .Concat(payments.Select(p => new
+                {
+                    p.type,
+                    p.date,
+                    amount = (decimal?)p.amount,
+                    category = (string?)null,
+                    p.status
+                }))
+                .Concat(complaints.Select(c => new
+                {
+                    c.type,
+                    c.date,
+                    amount = (decimal?)null,
+                    category = c.category,
+                    c.status
+                }))
+                .OrderByDescending(a => a.date)
+                .Take(10)
                 .ToList();
 
             return Ok(new
             {
-                userId = userId,
-                fullName = user.FullName,
-                isBanned = user.IsBanned,
-                banReason = user.BanReason,
-                bannedAt = user.BannedAt,
-                warningCount = actions.Count(a => a.type == "Warning"),
-                banCount = actions.Count(a => a.type == "Ban"),
-                actions = actions
+                user = new
+                {
+                    user.Id,
+                    user.FullName,
+                    user.Email,
+                    user.Phone,
+                    photo = BuildUserPhotoUrl(user.Photo)
+                },
+                totals = new
+                {
+                    tickets = _context.Tickets.Count(t => t.UserId == userId),
+                    payments = _context.Payments.Count(p => p.UserId == userId),
+                    complaints = _context.Complaints.Count(c => c.UserId == userId)
+                },
+                recentActions
             });
         }
     }
