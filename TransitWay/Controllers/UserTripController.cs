@@ -14,9 +14,8 @@ namespace TransitWay.Controllers
         private readonly ApplicationDbContext _context;
         private readonly HttpClient _httpClient;
 
-        // ✅ أوقات العمل: من 12 بليل (0) لـ 3 العصر (15)
-        private const int WorkStartHour = 0;   // 12 بليل
-        private const int WorkEndHour = 15;    // 3 العصر
+        private const int WorkStartHour = 6;   
+        private const int WorkEndHour = 0;    
 
         public UserTripController(ApplicationDbContext context, HttpClient httpClient)
         {
@@ -35,14 +34,13 @@ namespace TransitWay.Controllers
 
             int currentHour = egyptTime.Hour;
 
-            // ✅ لو برا أوقات العمل (قبل 12 بليل أو بعد 3 العصر)
             bool isWithinWorkingHours = currentHour >= WorkStartHour && currentHour < WorkEndHour;
 
             if (!isWithinWorkingHours)
             {
                 return BadRequest(new
                 {
-                    message = "Sorry, service is not available at this time. Working hours are from 12:00 AM to 3:00 PM.",
+                    message = "Sorry, service is not available at this time. Working hours are from 6:00 AM to 12:00 PM.",
                     currentTime = egyptTime.ToString("hh:mm tt"),
                     workingHours = "12:00 AM - 3:00 PM"
                 });
