@@ -22,11 +22,29 @@ namespace TransitWay.Controllers
             _attachmentService = attachmentService;
         }
 
-        private string HashPassword(string password)
+        private static string HashLegacyPassword(string password)
         {
             using var sha256 = SHA256.Create();
             var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
             return Convert.ToBase64String(bytes);
+        }
+
+        private static bool VerifyPassword(string password, string? storedHash)
+        {
+            if (string.IsNullOrWhiteSpace(storedHash))
+                return false;
+
+            try
+            {
+                if (BCrypt.Net.BCrypt.Verify(password, storedHash))
+                    return true;
+            }
+            catch
+            {
+                // ignore invalid bcrypt hash format and fall back to legacy hash
+            }
+
+            return storedHash == HashLegacyPassword(password);
         }
 
         private string? BuildPhotoUrl(string? photoName)
@@ -44,11 +62,14 @@ namespace TransitWay.Controllers
                 .Include(d => d.Bus)
                 .FirstOrDefault(u => u.Email == input.Email);
 
-            if (driver == null)
-                return NotFound(new { message = "Driver not found" });
+            if (driver == null || !VerifyPassword(input.Password, driver.PasswordHash))
+                return Unauthorized("Invalid email or password");
 
-            if (!BCrypt.Net.BCrypt.Verify(input.Password, driver.PasswordHash))
-                return Unauthorized(new { message = "Invalid password" });
+            if (driver.PasswordHash == HashLegacyPassword(input.Password))
+            {
+                driver.PasswordHash = BCrypt.Net.BCrypt.HashPassword(input.Password);
+                _context.SaveChanges();
+            }
 
             return Ok(new DriverResponseDto
             {
