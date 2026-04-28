@@ -1,7 +1,10 @@
-﻿namespace TransitWay.Dtos
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace TransitWay.Dtos
 {
     public class GoogleLoginDto
     {
-        public string IdToken { get; set; }
+        [Required]
+        public string? IdToken { get; set; }
     }
 }

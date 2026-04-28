@@ -2,7 +2,6 @@
 using TransitWay.Data;
 using TransitWay.Dtos;
 using TransitWay.Entites;
-using System.Security.Claims;
 
 [ApiController]
 [Route("api/admin")]
@@ -120,10 +119,6 @@ public class AdminController : ControllerBase
     [HttpPost]
     public IActionResult Create(CreateAdminDto dto)
     {
-        var role = User.FindFirst(ClaimTypes.Role)?.Value;
-        if (role != "SuperAdmin")
-            return Forbid("Only SuperAdmin can create admins");
-
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
@@ -154,10 +149,6 @@ public class AdminController : ControllerBase
     [HttpPut("{id}")]
     public IActionResult Update(int id, UpdateAdminDto dto)
     {
-        var role = User.FindFirst(ClaimTypes.Role)?.Value;
-        if (role != "SuperAdmin")
-            return Forbid("Only SuperAdmin can update");
-
         var admin = _context.Admins.Find(id);
         if (admin == null)
             return NotFound("Admin not found");
@@ -173,10 +164,6 @@ public class AdminController : ControllerBase
     [HttpPut("status/{id}")]
     public IActionResult ToggleStatus(int id)
     {
-        var role = User.FindFirst(ClaimTypes.Role)?.Value;
-        if (role != "SuperAdmin")
-            return Forbid("Only SuperAdmin can change status");
-
         var admin = _context.Admins.Find(id);
         if (admin == null)
             return NotFound();
@@ -190,10 +177,6 @@ public class AdminController : ControllerBase
     [HttpDelete("{id}")]
     public IActionResult Delete(int id)
     {
-        var role = User.FindFirst(ClaimTypes.Role)?.Value;
-        if (role != "SuperAdmin")
-            return Forbid("Only SuperAdmin can delete");
-
         var admin = _context.Admins.Find(id);
         if (admin == null)
             return NotFound();

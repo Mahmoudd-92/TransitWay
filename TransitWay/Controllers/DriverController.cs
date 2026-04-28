@@ -38,28 +38,28 @@ namespace TransitWay.Controllers
         }
 
         [HttpPost("login")]
-        public IActionResult DriverLogin(LoginDto input)
+        public IActionResult DriverLogin([FromBody] LoginDto input)
         {
-            var passwordHash = HashPassword(input.Password);
-
             var driver = _context.Drivers
-                .FirstOrDefault(d => d.Email == input.Email &&
-                                     d.PasswordHash == passwordHash);
+                .Include(d => d.Bus)
+                .FirstOrDefault(u => u.Email == input.Email);
 
             if (driver == null)
-                return Unauthorized("Invalid email or password");
+                return NotFound(new { message = "Driver not found" });
 
-            return Ok(new
+            if (!BCrypt.Net.BCrypt.Verify(input.Password, driver.PasswordHash))
+                return Unauthorized(new { message = "Invalid password" });
+
+            return Ok(new DriverResponseDto
             {
-                message = "Login successful",
-                driver.Id,
-                driver.Name,
-                driver.Email,
-                driver.Phone,
-                driver.Bus,
-                driver.BusId,
-                driver.LicenseNumber,
-                driver.Status,
+                Id = driver.Id,
+                Name = driver.Name,
+                Email = driver.Email,
+                Phone = driver.Phone,
+                Bus = driver.Bus?.BusNumber,
+                BusId = driver.BusId,
+                LicenseNumber = driver.LicenseNumber,
+                Status = driver.Status,
                 Photo = BuildPhotoUrl(driver.Photo)
             });
         }
@@ -162,7 +162,7 @@ namespace TransitWay.Controllers
                 Email = input.Email,
                 LicenseNumber = input.LicenseNumber,
                 Photo = photoName,
-                PasswordHash = HashPassword(input.Password),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(input.Password),
                 Status = "Inactive"
 
             };
@@ -307,7 +307,7 @@ namespace TransitWay.Controllers
             if (driver == null)
                 return NotFound("Driver not found");
 
-            driver.PasswordHash = HashPassword(newPassword);
+            driver.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
 
             _context.SaveChanges();
 

@@ -1,6 +1,6 @@
 ﻿namespace TransitWay.Dtos
 {
-    public class DriverResponseDto
+    public class DriverLoginDto
     {
         public int Id { get; set; }
         public string Name { get; set; }
