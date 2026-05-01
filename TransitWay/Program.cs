@@ -43,10 +43,13 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
+
+builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
+
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<GoogleAuthService>();
-builder.Services.AddHostedService<LocationSimulationService>();
+//builder.Services.AddHostedService<LocationSimulationService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 
 var app = builder.Build();
@@ -63,5 +66,4 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<TrackingHub>("/trackingHub");
-
 app.Run();

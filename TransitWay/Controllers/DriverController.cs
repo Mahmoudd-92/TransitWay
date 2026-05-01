@@ -238,6 +238,190 @@ namespace TransitWay.Controllers
             });
         }
 
+        [HttpPost("sos")]
+        public IActionResult SendSos([FromForm] CreateDriverSosDto dto)
+        {
+            var driver = _context.Drivers
+                .Include(d => d.Bus)
+                .FirstOrDefault(d => d.Id == dto.DriverId);
+
+            if (driver == null)
+                return NotFound("Driver not found");
+
+            if (driver.BusId == null)
+                return BadRequest("Driver is not assigned to a bus");
+
+            string? photoPath = null;
+            if (dto.Photo != null && dto.Photo.Length > 0)
+            {
+                photoPath = _attachmentService.Upload("results", dto.Photo);
+                if (string.IsNullOrWhiteSpace(photoPath))
+                    return BadRequest("Invalid photo. Only jpg, jpeg, png up to 5MB are allowed.");
+            }
+
+            var alert = new Alert
+            {
+                BusId = driver.BusId.Value,
+                Type = dto.SituationType,
+                Description = dto.Description,
+                SituationPhotoPath = photoPath,
+                Latitude = dto.Latitude,
+                Longitude = dto.Longitude,
+                NeedReplacementBus = dto.NeedReplacementBus,
+                IsSos = true,
+                CreatedAt = DateTime.UtcNow,
+                Status = SosAlertStatus.PendingAdminReview
+            };
+
+            _context.Alerts.Add(alert);
+            _context.SaveChanges();
+
+            return Ok(new
+            {
+                message = "SOS alert created and sent to admins dashboard",
+                alertId = alert.Id,
+                busId = alert.BusId,
+                location = new { alert.Latitude, alert.Longitude },
+                needReplacementBus = alert.NeedReplacementBus,
+                status = alert.Status,
+                photoUrl = string.IsNullOrWhiteSpace(alert.SituationPhotoPath)
+                    ? null
+                    : $"{Request.Scheme}://{Request.Host}/uploads/results/{alert.SituationPhotoPath}"
+            });
+        }
+
+        [HttpPost("sos/{alertId}/start-safety-check")]
+        public IActionResult StartSafetyCheck(int alertId)
+        {
+            var alert = _context.Alerts.FirstOrDefault(a => a.Id == alertId && a.IsSos);
+            if (alert == null)
+                return NotFound("SOS alert not found");
+
+            alert.SafetyCheckStartedAt = DateTime.UtcNow;
+            alert.Status = SosAlertStatus.AwaitingDriverCheckResponse;
+            _context.SaveChanges();
+
+            return Ok(new
+            {
+                message = "Safety check started. Driver has 60 seconds to confirm they are okay.",
+                alertId = alert.Id,
+                startedAtUtc = alert.SafetyCheckStartedAt,
+                timeoutSeconds = 60
+            });
+        }
+
+        [HttpPost("sos/{alertId}/safety-check-response")]
+        public IActionResult SubmitSafetyCheckResponse(int alertId, [FromBody] DriverSafetyCheckResponseDto dto)
+        {
+            var alert = _context.Alerts.FirstOrDefault(a => a.Id == alertId && a.IsSos);
+            if (alert == null)
+                return NotFound("SOS alert not found");
+
+            if (alert.SafetyCheckStartedAt == null)
+                return BadRequest("Safety check was not started for this SOS alert.");
+
+            if (alert.Status == SosAlertStatus.EscalatedToAuthorities)
+                return BadRequest("This SOS alert is already escalated to authorities.");
+
+            if (alert.Status == SosAlertStatus.DriverConfirmedSafe)
+                return BadRequest("Driver safety response was already confirmed.");
+
+            var elapsedSeconds = (DateTime.UtcNow - alert.SafetyCheckStartedAt.Value).TotalSeconds;
+            if (elapsedSeconds > 60)
+            {
+                alert.DriverIsOkay = false;
+                alert.Status = SosAlertStatus.EscalatedToAuthorities;
+                _context.SaveChanges();
+
+                return Ok(new
+                {
+                    message = "Safety window expired with late response. Escalated to authorities.",
+                    alertId = alert.Id,
+                    status = alert.Status,
+                    emergencyPayload = new
+                    {
+                        alert.BusId,
+                        alert.Type,
+                        alert.Description,
+                        alert.Latitude,
+                        alert.Longitude,
+                        alert.CreatedAt
+                    }
+                });
+            }
+
+            alert.DriverIsOkay = dto.IsOkay;
+
+            if (dto.IsOkay)
+            {
+                alert.Status = SosAlertStatus.DriverConfirmedSafe;
+                _context.SaveChanges();
+
+                return Ok(new
+                {
+                    message = "Driver confirmed they are okay. No escalation triggered.",
+                    alertId = alert.Id,
+                    status = alert.Status
+                });
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.AdditionalDetails))
+            {
+                alert.Description = string.IsNullOrWhiteSpace(alert.Description)
+                    ? dto.AdditionalDetails.Trim()
+                    : $"{alert.Description}\n\nDriver follow-up: {dto.AdditionalDetails.Trim()}";
+            }
+
+            alert.Status = SosAlertStatus.EscalatedToAuthorities;
+            _context.SaveChanges();
+
+            return Ok(new
+            {
+                message = "Driver reported severe incident. Escalated to ambulance, fire truck, and authorities.",
+                alertId = alert.Id,
+                status = alert.Status,
+                emergencyPayload = new
+                {
+                    alert.BusId,
+                    alert.Type,
+                    alert.Description,
+                    alert.Latitude,
+                    alert.Longitude,
+                    alert.CreatedAt
+                }
+            });
+        }
+
+        [HttpPost("sos/{alertId}/auto-escalate-no-response")]
+        public IActionResult AutoEscalateNoResponse(int alertId)
+        {
+            var alert = _context.Alerts.FirstOrDefault(a => a.Id == alertId && a.IsSos);
+            if (alert == null)
+                return NotFound("SOS alert not found");
+
+            if (alert.DriverIsOkay == true)
+                return BadRequest("Driver already confirmed they are safe.");
+
+            alert.Status = SosAlertStatus.EscalatedToAuthorities;
+            alert.DriverIsOkay = false;
+            _context.SaveChanges();
+
+            return Ok(new
+            {
+                message = "No response from driver after safety window. Escalation to authorities should be triggered by dispatcher integration.",
+                alertId = alert.Id,
+                status = alert.Status,
+                emergencyPayload = new
+                {
+                    alert.BusId,
+                    alert.Type,
+                    alert.Description,
+                    alert.Latitude,
+                    alert.Longitude,
+                    alert.CreatedAt
+                }
+            });
+        }
 
 
         [HttpDelete("{id}")]
