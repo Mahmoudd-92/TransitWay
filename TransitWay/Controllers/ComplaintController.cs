@@ -16,6 +16,7 @@ public class ComplaintController : ControllerBase
 
     private const string AiBaseUrl = "http://54.91.157.86:8000";
 
+ 
     private static string MapToCategory(string? className)
     {
         if (string.IsNullOrWhiteSpace(className))
@@ -29,30 +30,38 @@ public class ComplaintController : ControllerBase
         return normalized switch
         {
             "damaged_window" => "Damaged Window",
-            "damaged_seat" => "Damaged Seat",
-            "cigarette" => "Smoking",
-            "smoke" => "Smoking",
-            "drink" => "Drink",
+
             "trash_cardboard" => "Trash",
             "trash_random" => "Trash",
             "trash_paper" => "Trash",
             "trash_plastic" => "Trash",
             "trash_metal" => "Trash",
-            var t when t.StartsWith("trash") => "Trash",
+            var t when t.StartsWith("trash") => "Trash",   
+
+            "drink" => "Drink",
+
+            "cigarette" => "Smoking",
+
+            "smoke" => "Bus Smoke",
+
+            "damaged_seat" => "Damaged Seat",
+
             _ => "Other"
         };
     }
 
-    private static string MapToPriority(string category)
+
+    private static string MapToPriority(string category, double confidence = 1.0)
     {
         return category switch
         {
-            "Damaged Window" => "Critical",
-            "Damaged Seat" => "Critical",
-            "Smoking" => "High",
-            "Drink" => "Medium",
-            "Trash" => "Medium",
-            "Text Report" => "Low",
+            "Damaged Window" => "Critical",                                  
+            "Damaged Seat" => "Critical",                                  
+            "Bus Smoke" => "Critical",                                  
+            "Smoking" => confidence >= 0.70 ? "High" : "Medium",     
+            "Drink" => "Medium",                                    
+            "Trash" => "Medium",                                    
+            "Text Report" => "Low",                                      
             _ => "Low"
         };
     }
@@ -97,6 +106,9 @@ public class ComplaintController : ControllerBase
         return Ok(complaints);
     }
 
+    // ============================================================
+    //  GET STATS
+    // ============================================================
     [HttpGet("stats")]
     public async Task<IActionResult> GetStats()
     {
@@ -107,12 +119,19 @@ public class ComplaintController : ControllerBase
             TotalReports = complaints.Count,
             PendingReview = complaints.Count(c => c.Status == "Pending"),
             Resolved = complaints.Count(c => c.Status == "Resolved"),
-            CriticalIssues = complaints.Count(c => c.Priority == "Critical")
+            CriticalIssues = complaints.Count(c => c.Priority == "Critical"),
+
+            ByCategory = complaints
+                .GroupBy(c => c.Category)
+                .Select(g => new { Category = g.Key, Count = g.Count() })
+                .OrderByDescending(x => x.Count)
+                .ToList()
         };
 
         return Ok(stats);
     }
 
+  
     [HttpPatch("{id}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusDto dto)
     {
@@ -130,6 +149,7 @@ public class ComplaintController : ControllerBase
         return Ok(new { message = "Status updated", complaint.Id, complaint.Status });
     }
 
+ 
     [HttpPost("report")]
     public async Task<IActionResult> UploadComplaint([FromForm] ReportImageDto dto)
     {
@@ -143,10 +163,13 @@ public class ComplaintController : ControllerBase
 
         bool problemDetected = false;
         string category = "Unknown";
+        string priority = "Low";
         string originalImagePath = "";
         string resultImagePath = "";
         string originalImageUrl = "";
         string resultImageUrl = "";
+        double bestConfidence = 0;
+        string detectedClassName = "";
 
         if (hasImage)
         {
@@ -167,17 +190,33 @@ public class ComplaintController : ControllerBase
 
             using var doc = JsonDocument.Parse(json);
 
-            string? detectedClass = null;
+            string? bestClass = null;
 
             if (doc.RootElement.TryGetProperty("predictions", out var predictionsArray)
                 && predictionsArray.GetArrayLength() > 0)
             {
-                var firstPrediction = predictionsArray[0];
-                detectedClass = firstPrediction.GetProperty("class_name").GetString();
-                problemDetected = !string.IsNullOrEmpty(detectedClass);
+                foreach (var prediction in predictionsArray.EnumerateArray())
+                {
+                    double confidence = 0;
+
+                    if (prediction.TryGetProperty("confidence", out var confProp))
+                        confidence = confProp.GetDouble();
+                    else if (prediction.TryGetProperty("score", out var scoreProp))
+                        confidence = scoreProp.GetDouble();
+
+                    if (confidence > bestConfidence)
+                    {
+                        bestConfidence = confidence;
+                        bestClass = prediction.GetProperty("class_name").GetString();
+                    }
+                }
+
+                problemDetected = !string.IsNullOrEmpty(bestClass);
+                detectedClassName = bestClass ?? "";
             }
 
-            category = MapToCategory(detectedClass);
+            category = MapToCategory(bestClass);
+            priority = MapToPriority(category, bestConfidence);
 
             if (!doc.RootElement.TryGetProperty("output_image", out var outputImageElement))
                 return StatusCode(500, $"Invalid AI response — missing output_image: {json}");
@@ -212,9 +251,9 @@ public class ComplaintController : ControllerBase
         {
             problemDetected = true;
             category = "Text Report";
+            priority = MapToPriority(category);
+            detectedClassName = "N/A";
         }
-
-        var priority = MapToPriority(category);
 
         var complaint = new Complaint
         {
@@ -236,8 +275,10 @@ public class ComplaintController : ControllerBase
         {
             message = "report send successfully",
             problemDetected,
-            category,
+            detectedClass = detectedClassName,                      
+            category,                                                  
             priority,
+            confidence = Math.Round(bestConfidence * 100, 1),   
             status = "Pending",
             textComplaint = dto.TextComplaint,
             originalImage = string.IsNullOrEmpty(originalImageUrl) ? null : originalImageUrl,

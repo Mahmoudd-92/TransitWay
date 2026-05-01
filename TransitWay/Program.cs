@@ -1,10 +1,14 @@
 using Microsoft.EntityFrameworkCore;
+using System;
 using TransitWay.Data;
 using TransitWay.Hubs;
 using TransitWay.Services;
 using TransitWay.Services.AttachmentService;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Get the connection string from configuration
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 // ? AddControllers ??? ????? ?? ?? ??? JsonOptions
 builder.Services.AddControllers()
@@ -20,18 +24,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOptions =>
-        {
-            sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(10),
-                errorNumbersToAdd: null
-            );
-        })
-);
-
+    options.UseNpgsql(connectionString));
 // ? AddCors ??? ????? ??
 builder.Services.AddCors(options =>
 {

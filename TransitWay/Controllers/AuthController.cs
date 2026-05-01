@@ -135,7 +135,8 @@ namespace TransitWay.Controllers
                 user.Id,
                 user.FullName,
                 user.Email,
-                Photo = BuildUserPhotoUrl(user.Photo)
+                Photo = BuildUserPhotoUrl(user.Photo),
+               user.Phone
             });
         }
 
