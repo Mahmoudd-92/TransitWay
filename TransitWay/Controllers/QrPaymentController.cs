@@ -100,7 +100,7 @@ namespace TransitWay.Controllers
                 Price = fare,
                 QRToken = Guid.NewGuid().ToString(),
                 CreatedAt = DateTime.UtcNow,
-                ExpireAt = DateTime.UtcNow.AddHours(2),
+                ExpireAt = DateTime.UtcNow.AddHours(3),
                 IsUsed = false,
                 Status = TicketStatus.Valid
             };

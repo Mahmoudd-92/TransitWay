@@ -14,8 +14,8 @@ namespace TransitWay.Controllers
         private readonly ApplicationDbContext _context;
         private readonly HttpClient _httpClient;
 
-        private const int WorkStartHour = 6;   
-        private const int WorkEndHour = 24;    
+        private const int WorkStartHour = 6;
+        private const int WorkEndHour = 24;
 
         public UserTripController(ApplicationDbContext context, HttpClient httpClient)
         {
